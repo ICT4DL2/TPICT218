@@ -30,8 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_riverpod: ^2.0.0
-  hive: ^2.0.0
+  flutter_riverpod: any
+  hive: any
   hive_flutter: any
   firebase_core: any
   firebase_auth: any
