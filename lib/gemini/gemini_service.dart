@@ -1,21 +1,32 @@
 // lib/gemini/gemini_service.dart
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:dio/dio.dart';
 
 class GeminiService {
-  // Crée une référence à la fonction callable
-  final HttpsCallable _generateBriefingCallable =
-  FirebaseFunctions.instance.httpsCallable('generateGeminiBriefing');
+  final Dio _dio = Dio();
 
-  /// Appelle la fonction Firebase pour générer le briefing tactique.
+  // Remplacez cette URL par l'URL publique de votre fonction Netlify.
+  // Par exemple, si votre site Netlify s'appelle "immunowariors", utilisez :
+  // https://immunowariors.netlify.app/.netlify/functions/generateGeminiBriefing
+  final String _endpoint =
+      'https://immunowariors.netlify.app/.netlify/functions/generateGeminiBriefing';
+
+  /// Appelle l'endpoint Netlify pour générer le briefing tactique.
   Future<String> fetchBriefing(String battleData) async {
     try {
-      final result = await _generateBriefingCallable.call({
-        'battleData': battleData,
-      });
-      // La fonction renvoie un objet avec "output" contenant le briefing.
-      return result.data['output'] ?? 'Aucune chronique générée.';
+      final response = await _dio.post(
+        _endpoint,
+        data: {'battleData': battleData},
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+        ),
+      );
+      if (response.statusCode == 200) {
+        return response.data['output'] ?? 'Aucune chronique générée.';
+      } else {
+        return "Erreur Gemini: Code ${response.statusCode}";
+      }
     } catch (e) {
-      return "Erreur lors de l'appel à Gemini via Firebase Functions: $e";
+      return "Erreur lors de l'appel à Gemini via l'endpoint: $e";
     }
   }
 }
