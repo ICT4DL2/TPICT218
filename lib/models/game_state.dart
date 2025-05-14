@@ -1,6 +1,7 @@
+// lib/gemini/gemini_user.dart (ou dans le fichier où se trouve GameState)
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'agent_pathogene.dart';
 import 'bacterie.dart';
 import 'champignon.dart';
@@ -31,6 +32,9 @@ class GameState extends ChangeNotifier {
 
   /// Instance de la logique de création et d’évolution des agents.
   late LaboratoireCreation laboratoireCreation;
+
+  /// Nouvelle propriété battleData qui contiendra les informations de la bataille.
+  String battleData = "Bataille simulée en cours";
 
   GameState() {
     laboratoireCreation = LaboratoireCreation(ressources);
@@ -102,6 +106,8 @@ class GameState extends ChangeNotifier {
     await box.put('agents', agents);
     await box.put('anticorps', anticorps);
     await box.put('baseVirale', baseVirale);
+    // Sauvegarde du battleData.
+    await box.put('battleData', battleData);
   }
 
   /// Charge l'état sauvegardé depuis Hive et notifie l'interface.
@@ -128,6 +134,12 @@ class GameState extends ChangeNotifier {
     }
     if (box.containsKey('baseVirale')) {
       baseVirale = box.get('baseVirale');
+    }
+    // Chargement du battleData.
+    if (box.containsKey('battleData')) {
+      battleData = box.get('battleData');
+    } else {
+      battleData = "Bataille simulée en cours";
     }
 
     notifyListeners();

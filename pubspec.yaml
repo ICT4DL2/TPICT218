@@ -41,6 +41,7 @@ dependencies:
   googleapis_auth: any
   http: any
   provider: any
+  cloud_functions: any
 
 
   # The following adds the Cupertino Icons font to your application.

@@ -1,6 +1,8 @@
 // lib/combat_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'gemini/briefing_widget.dart'; // Assurez-vous que le chemin est correct
+import 'models/game_state.dart';
 
 class CombatScreen extends ConsumerStatefulWidget {
   const CombatScreen({Key? key}) : super(key: key);
@@ -12,6 +14,9 @@ class CombatScreen extends ConsumerStatefulWidget {
 class _CombatScreenState extends ConsumerState<CombatScreen> {
   @override
   Widget build(BuildContext context) {
+    final gameState = ref.watch(gameStateProvider);
+    final String battleData = gameState.battleData;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Combat"),
@@ -25,7 +30,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
             flex: 7,
             child: Center(
               child: Container(
-                margin: const EdgeInsets.all(32),
+                margin: const EdgeInsets.symmetric(horizontal: 48, vertical: 32),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.black45, width: 4),
                   borderRadius: BorderRadius.circular(24),
@@ -52,22 +57,10 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Center(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            // Implémentez ici l'action de recherche d'un adversaire
-                          },
-                          icon: const Icon(Icons.search, size: 20),
-                          label: const Text(
-                            "Rechercher",
-                            style: TextStyle(fontSize: 18, letterSpacing: 1.2),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            backgroundColor: Colors.deepPurple,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
+                        child: Icon(
+                          Icons.sports_martial_arts,
+                          size: 80,
+                          color: Colors.black38,
                         ),
                       ),
                     ),
@@ -76,7 +69,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
               ),
             ),
           ),
-          // Partie inférieure : Zone de commandes et d'informations complémentaires (30 % de la hauteur)
+          // Partie inférieure : Zone de Briefing via Gemini (30 % de la hauteur)
           Expanded(
             flex: 3,
             child: Container(
@@ -93,17 +86,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
                   ),
                 ],
               ),
-              child: Center(
-                child: Text(
-                  "Zone de Commande et Informations",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple.shade700,
-                  ),
-                ),
-              ),
+              child: BriefingWidget(battleData: battleData),
             ),
           ),
         ],
