@@ -1,44 +1,84 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'package:flutter/services.dart';
-import 'login_screen.dart';
-void main() async {
-  // Garantie de l'initialisation des liens entre Flutter et le moteur natif,
-  // nécessaire pour les opérations asynchrones dans main.
+import 'accueil.dart'; // Page d'accueil
+import 'laboratoire_screen.dart'; // Écran LaboratoireScreen
+import 'combat_screen.dart'; // Écran LaboratoireScreen
+
+import 'models/bacterie.dart';
+import 'models/champignon.dart';
+import 'models/virus.dart';
+import 'models/anticorps.dart';
+import 'models/base_virale.dart';
+import 'models/memoire_immunitaire.dart';
+import 'models/ressources_defensives.dart';
+import 'models/game_state.dart';
+
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Imposition du mode paysage.
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
-  ]);
-
-  // Initialisation de Hive pour la gestion de la base de données locale.
+  // Initialisation de Hive pour Flutter.
   await Hive.initFlutter();
 
-  // Initialisation de Firebase (assurez-vous d'avoir configuré Firebase dans votre projet).
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+  // Enregistrez ici vos adaptateurs générés par Hive.
+  Hive.registerAdapter(BacterieAdapter());
+  Hive.registerAdapter(ChampignonAdapter());
+  Hive.registerAdapter(VirusAdapter());
+  Hive.registerAdapter(AnticorpsAdapter());
+  Hive.registerAdapter(BaseViraleAdapter());
+  Hive.registerAdapter(MemoireImmunitaireAdapter());
+  Hive.registerAdapter(RessourcesDefensivesAdapter());
+
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
   );
-  // Lancement de l'application avec le widget racine MyApp.
-  runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      final gameState = ProviderScope.containerOf(context).read(gameStateProvider);
+      gameState.saveState();
+    }
+    super.didChangeAppLifecycleState(state);
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'immunowarriors',
+      title: 'ImmunoWarriors',
       theme: ThemeData(
-        // Génère une palette de couleurs à partir d'une couleur de base.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        primarySwatch: Colors.blue,
       ),
-      // L'écran d'accueil est défini ici.
-      home: const LoginScreen(),
+      initialRoute: '/accueil', // Écran d'accueil
+      routes: {
+        '/accueil': (context) => const Accueil(),
+        '/laboratoire': (context) => const LaboratoireScreen(),
+        '/combat': (context) => const CombatScreen(),
+      },
     );
   }
 }

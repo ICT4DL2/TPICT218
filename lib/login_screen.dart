@@ -1,158 +1,274 @@
+// laboratoire_screen.dart
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'home_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'models/game_state.dart'; // Pour accéder à gameStateProvider
+import 'models/laboratoire_recherche.dart';
+import 'models/agent_pathogene.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class LaboratoireScreen extends ConsumerStatefulWidget {
+  const LaboratoireScreen({Key? key}) : super(key: key);
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  _LaboratoireScreenState createState() => _LaboratoireScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
+  // Variables pour la création d'agents pathogènes
+  String selectedAgentType = "Bacterie";
+  final TextEditingController agentPvController = TextEditingController();
+  final TextEditingController agentArmureController = TextEditingController();
+  final TextEditingController agentDegatsController = TextEditingController();
+  final TextEditingController agentInitiativeController = TextEditingController();
 
-  bool _isLoading = false;
-  String _errorMessage = '';
-
-  // Variable pour basculer entre mode "connexion" et "création de compte"
-  bool _isLoginMode = true;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _authenticate() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-    try {
-      UserCredential userCredential;
-      if (_isLoginMode) {
-        // Mode connexion
-        userCredential = await _auth.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
-      } else {
-        // Mode création de compte
-        userCredential = await _auth.createUserWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
-      }
-      if (userCredential.user != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      setState(() {
-        _errorMessage = e.message ?? "Erreur d'authentification";
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = "Une erreur inattendue est survenue";
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  // Bascule entre les modes connexion et création de compte
-  void _toggleFormMode() {
-    setState(() {
-      _isLoginMode = !_isLoginMode;
-      _errorMessage = '';
-    });
-  }
+  // Variable pour la création d'anticorps
+  final TextEditingController anticorpsNomController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
+    final gameState = ref.watch(gameStateProvider);
+    final laboratoire = gameState.laboratoireCreation;
+
     return Scaffold(
-      // On ne garde pas d'AppBar pour un rendu en plein écran
-      body: Center(
-        child: SingleChildScrollView(
+      appBar: AppBar(
+        title: const Text('Laboratoire & Recherche'),
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue.shade300,
+              Colors.green.shade300,
+              Colors.red.shade300,
+              Colors.purple.shade300,
+            ],
+          ),
+        ),
+        child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Card(
-              elevation: 8.0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Titre qui change en fonction du mode
-                    Text(
-                      _isLoginMode ? "Se connecter" : "Créer un compte",
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Laboratoire & Recherche',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 16.0),
-                    TextField(
-                      controller: _emailController,
-                      decoration: const InputDecoration(
-                        labelText: "Email",
-                        prefixIcon: Icon(Icons.email),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  // Section de création d'un agent pathogène
+                  const Text(
+                    'Créer un Agent Pathogène',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 16.0),
-                    TextField(
-                      controller: _passwordController,
-                      decoration: const InputDecoration(
-                        labelText: "Mot de passe",
-                        prefixIcon: Icon(Icons.lock),
-                      ),
-                      obscureText: true,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedAgentType,
+                    items: const [
+                      DropdownMenuItem(child: Text("Bacterie"), value: "Bacterie"),
+                      DropdownMenuItem(child: Text("Champignon"), value: "Champignon"),
+                      DropdownMenuItem(child: Text("Virus"), value: "Virus"),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          selectedAgentType = value;
+                        });
+                      }
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Type d\'agent',
+                      filled: true,
+                      fillColor: Colors.white70,
+                      border: OutlineInputBorder(),
                     ),
-                    const SizedBox(height: 16.0),
-                    if (_errorMessage.isNotEmpty)
-                      Text(
-                        _errorMessage,
-                        style: const TextStyle(color: Colors.red),
-                        textAlign: TextAlign.center,
-                      ),
-                    const SizedBox(height: 16.0),
-                    _isLoading
-                        ? const CircularProgressIndicator()
-                        : ElevatedButton(
-                      onPressed: _authenticate,
-                      child: Text(
-                        _isLoginMode ? "Se connecter" : "Créer un compte",
-                      ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(agentPvController, 'Valeur de base de PV (optionnel)'),
+                  _buildTextField(agentArmureController, 'Valeur de base d\'armure (optionnel)'),
+                  _buildTextField(agentDegatsController, 'Valeur de base de dégâts (optionnel)'),
+                  _buildTextField(agentInitiativeController, 'Valeur de base d\'initiative (optionnel)'),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      try {
+                        AgentPathogene newAgent;
+                        if (_areAgentFieldsFilled()) {
+                          int pv = int.parse(agentPvController.text);
+                          double armure = double.parse(agentArmureController.text);
+                          int degats = int.parse(agentDegatsController.text);
+                          int initiative = int.parse(agentInitiativeController.text);
+                          newAgent = laboratoire.creerAgentPathogeneManual(
+                            type: selectedAgentType,
+                            pv: pv,
+                            armure: armure,
+                            degats: degats,
+                            initiative: initiative,
+                          );
+                        } else {
+                          newAgent = laboratoire.creerAgentPathogene(type: selectedAgentType);
+                        }
+                        gameState.addAgent(newAgent);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Agent Pathogène créé !')),
+                        );
+                        _clearAgentFields();
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(e.toString())),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Créer Agent'),
+                  ),
+                  const SizedBox(height: 24),
+                  // Section de création d'un anticorps
+                  const Text(
+                    'Créer un Anticorps',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 8.0),
-                    // Bouton permettant de basculer entre les deux modes
-                    TextButton(
-                      onPressed: _toggleFormMode,
-                      child: Text(
-                        _isLoginMode
-                            ? "Vous n'avez pas de compte ? Créez-en un"
-                            : "Vous avez déjà un compte ? Connectez-vous",
-                      ),
-                    ),
-                  ],
-                ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(anticorpsNomController, 'Nom de l\'anticorps'),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      try {
+                        if (anticorpsNomController.text.isEmpty) {
+                          throw Exception("Veuillez saisir le nom de l'anticorps.");
+                        }
+                        final newAnticorps = laboratoire.creerAnticorps(nom: anticorpsNomController.text);
+                        gameState.addAnticorps(newAnticorps);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Anticorps créé !')),
+                        );
+                        anticorpsNomController.clear();
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(e.toString())),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Créer Anticorps'),
+                  ),
+                  const SizedBox(height: 24),
+                  // Affichage des agents existants
+                  const Text(
+                    'Agents Existants',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  ListView.builder(
+                    itemCount: gameState.agents.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemBuilder: (context, index) {
+                      final agent = gameState.agents[index];
+                      return Card(
+                        color: Colors.white70,
+                        child: ListTile(
+                          title: Text(agent.nom),
+                          subtitle: Text('PV: ${agent.pv}, Dégâts: ${agent.degats}'),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  // Affichage des anticorps existants
+                  const Text(
+                    'Anticorps Existants',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  ListView.builder(
+                    itemCount: gameState.anticorps.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemBuilder: (context, index) {
+                      final anti = gameState.anticorps[index];
+                      return Card(
+                        color: Colors.white70,
+                        child: ListTile(
+                          title: Text(anti.nom),
+                          subtitle: Text('PV: ${anti.pv}, Dégâts: ${anti.degats}'),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ),
         ),
       ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+          onPressed: () {
+            Navigator.pushNamed(context, '/accueil');
+          },
+          icon: const Icon(Icons.home),
+          label: const Text('Accueil'),
+        ),
+      ),
     );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextField(
+        controller: controller,
+        keyboardType: (label.contains("armure"))
+            ? TextInputType.numberWithOptions(decimal: true)
+            : TextInputType.number,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          filled: true,
+          fillColor: Colors.white70,
+        ),
+      ),
+    );
+  }
+
+  bool _areAgentFieldsFilled() {
+    return agentPvController.text.isNotEmpty &&
+        agentArmureController.text.isNotEmpty &&
+        agentDegatsController.text.isNotEmpty &&
+        agentInitiativeController.text.isNotEmpty;
+  }
+
+  void _clearAgentFields() {
+    agentPvController.clear();
+    agentArmureController.clear();
+    agentDegatsController.clear();
+    agentInitiativeController.clear();
   }
 }
