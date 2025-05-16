@@ -11,8 +11,10 @@ class Accueil extends ConsumerWidget {
     final gameState = ref.watch(gameStateProvider);
 
     // Pour cet exemple, nous considérons que la valeur maximale des ressources est 100.
-    final double energieValue = (gameState.ressources.energie / 100).clamp(0.0, 1.0).toDouble();
-    final double biomatValue = (gameState.ressources.bioMateriaux / 100).clamp(0.0, 1.0).toDouble();
+    final double energieValue =
+    (gameState.ressources.energie / 100).clamp(0.0, 1.0).toDouble();
+    final double biomatValue =
+    (gameState.ressources.bioMateriaux / 100).clamp(0.0, 1.0).toDouble();
 
     return Scaffold(
       appBar: AppBar(
@@ -52,7 +54,8 @@ class Accueil extends ConsumerWidget {
                         children: [
                           const Text(
                             'Énergie',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           Text('${gameState.ressources.energie}/100'),
                         ],
@@ -70,7 +73,8 @@ class Accueil extends ConsumerWidget {
                         children: [
                           const Text(
                             'Bio-Matériaux',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           Text('${gameState.ressources.bioMateriaux}/100'),
                         ],
@@ -85,60 +89,14 @@ class Accueil extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  // Section Agents Pathogènes
-                  const Text(
-                    'Agents Pathogènes',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ListView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: gameState.agents.length,
-                    itemBuilder: (context, index) {
-                      final agent = gameState.agents[index];
-                      return ListTile(
-                        leading: const Icon(Icons.bug_report, color: Colors.black87),
-                        title: Text(agent.nom),
-                        subtitle: Text('PV : ${agent.pv}, Dégâts : ${agent.degats}'),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  // Section Anticorps
-                  const Text(
-                    'Anticorps',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ListView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: gameState.anticorps.length,
-                    itemBuilder: (context, index) {
-                      final anticorpsUnit = gameState.anticorps[index];
-                      return ListTile(
-                        leading: const Icon(Icons.shield, color: Colors.blueGrey),
-                        title: Text(anticorpsUnit.nom),
-                        subtitle: Text('PV : ${anticorpsUnit.pv}, Dégâts : ${anticorpsUnit.degats}'),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
+                  // Les sections "Agents Pathogènes" et "Anticorps" ont été retirées.
                 ],
               ),
             ),
           ),
         ),
       ),
-      // Boutons de navigation placés en bas de l'écran.
-      // Le bouton 'Accueil' n'est pas affiché quand on est sur la page d'accueil.
+      // Boutons de navigation en bas.
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
@@ -147,7 +105,8 @@ class Accueil extends ConsumerWidget {
             Expanded(
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 onPressed: () {
@@ -161,7 +120,8 @@ class Accueil extends ConsumerWidget {
             Expanded(
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 onPressed: () {
@@ -175,7 +135,8 @@ class Accueil extends ConsumerWidget {
             Expanded(
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 onPressed: () {
@@ -188,6 +149,28 @@ class Accueil extends ConsumerWidget {
           ],
         ),
       ),
+      // Ajout de deux icônes empilées verticalement dans le coin inférieur droit.
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            mini: true,
+            onPressed: () {
+              // Action pour ouvrir les paramètres
+            },
+            child: const Icon(Icons.settings),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton(
+            mini: true,
+            onPressed: () {
+              // Action pour ouvrir la section bloc-notes
+            },
+            child: const Icon(Icons.note),
+          ),
+        ],
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

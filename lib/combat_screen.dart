@@ -2,8 +2,17 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// Importe les widgets ou modèles nécessaires
 import 'gemini/briefing_widget.dart'; // Assurez-vous que le chemin est correct
-import 'models/game_state.dart';
+import 'models/game_state.dart'; // Importe le GameStateProvider
+
+// Importe les modèles pour créer la base ennemie de test (PNJ)
+import 'models/bacterie.dart'; // Importe un type de pathogène concret
+import 'models/champignon.dart'; // Importe Champignon si utilisé dans _createTestEnemyBase
+import 'models/virus.dart'; // Importe Virus si utilisé dans _createTestEnemyBase
+import 'models/base_virale.dart'; // Importe la classe BaseVirale
+
 
 /// CustomPainter pour dessiner des carrés concentriques et des lignes radiales
 /// en vert accentué, simulant un écran de radar sur un fond carré.
@@ -47,6 +56,8 @@ class RadarPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+
+/// Écran de combat (Holo-Simulateur de Combat) où la simulation est lancée et le briefing affiché.
 class CombatScreen extends ConsumerStatefulWidget {
   const CombatScreen({Key? key}) : super(key: key);
 
@@ -54,11 +65,36 @@ class CombatScreen extends ConsumerStatefulWidget {
   _CombatScreenState createState() => _CombatScreenState();
 }
 
+/// L'état mutable de l'écran CombatScreen.
 class _CombatScreenState extends ConsumerState<CombatScreen> {
+
+  /// Méthode utilitaire pour créer une base ennemie de test simple (PNJ).
+  /// Cette base sera utilisée pour les combats "contre la machine".
+  BaseVirale _createTestEnemyBase() {
+    BaseVirale testBase = BaseVirale(nom: "Base PNJ Facile");
+
+    // Ajoute quelques pathogènes de test à la base PNJ.
+    // --- CORRECTION : Retire typeAttaque du constructeur Bacterie ---
+    // Le typeAttaque ("perforante") est défini dans le constructeur Bacterie lui-même.
+    testBase.ajouterAgent(Bacterie(pv: 80, armure: 5.0, degats: 15, initiative: 6));
+    testBase.ajouterAgent(Bacterie(pv: 70, armure: 4.0, degats: 18, initiative: 7));
+    testBase.ajouterAgent(Bacterie(pv: 90, armure: 6.0, degats: 12, initiative: 5));
+
+    // Exemple pour d'autres types si vous les ajoutez (ajustez selon leurs constructeurs) :
+    // testBase.ajouterAgent(Champignon(pv: 60, armure: 3.0, degats: 25, initiative: 8)); // Si Champignon définit son typeAttaque
+    // testBase.ajouterAgent(Virus(pv: 50, armure: 2.0, degats: 30, initiative: 9)); // Si Virus définit son typeAttaque
+
+    return testBase;
+  }
+
   @override
   Widget build(BuildContext context) {
+    // ref.watch écoute les changements du GameState pour reconstruire le widget
     final gameState = ref.watch(gameStateProvider);
-    final String battleData = gameState.battleData;
+    final String battleData = gameState.battleData; // Le BriefingWidget lit cette donnée
+
+    // ref.read est utilisé pour accéder à l'état (ou appeler des méthodes sur l'état)
+    final gameStateActions = ref.read(gameStateProvider); // Obtenir une référence pour les actions
 
     return Scaffold(
       appBar: AppBar(
@@ -68,17 +104,15 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
       ),
       body: Column(
         children: [
-          // Partie supérieure : Arène de combat réinventée en écran radar
+          // Partie supérieure : Arène de combat (écran radar) avec les boutons superposés.
           Expanded(
             flex: 7,
             child: Center(
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 48, vertical: 32),
                 decoration: BoxDecoration(
-                  // L'arène reste carrée avec des coins arrondis
                   border: Border.all(color: Colors.black45, width: 4),
                   borderRadius: BorderRadius.circular(16),
-                  // Gradient pour un fond "noir clair"
                   gradient: const LinearGradient(
                     colors: [Colors.black87, Colors.black54],
                     begin: Alignment.topLeft,
@@ -94,17 +128,64 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    // CustomPaint qui dessine les éléments du radar
-                    child: CustomPaint(
-                      painter: RadarPainter(),
-                    ),
+                  // Utilise un Stack pour superposer le radar et les boutons
+                  child: Stack(
+                    children: [
+                      // 1. Le dessin du radar (en arrière-plan dans le Stack)
+                      AspectRatio(
+                        aspectRatio: 1,
+                        child: CustomPaint(
+                          painter: RadarPainter(),
+                        ),
+                      ),
+                      // 2. Les boutons superposés (alignés en bas au centre du Stack)
+                      Align(
+                        alignment: Alignment.bottomCenter, // Aligne les boutons en bas au centre
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 20.0), // Ajoute un peu de padding en bas
+                          child: Column( // Utilise une colonne pour empiler les boutons
+                            mainAxisSize: MainAxisSize.min, // Prend le minimum d'espace vertical
+                            children: [
+                              // Bouton pour lancer le combat PNJ (contre la machine).
+                              ElevatedButton(
+                                onPressed: () {
+                                  // Créer une base ennemie de test (PNJ).
+                                  BaseVirale enemy = _createTestEnemyBase();
+                                  // Lancer le combat PNJ via GameState.
+                                  gameStateActions.startBattle(enemy);
+                                },
+                                child: const Text("Jouer contre la Machine (PNJ)"),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blueGrey, // Couleur indicative PNJ
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  textStyle: const TextStyle(fontSize: 16),
+                                ),
+                              ),
+                              const SizedBox(height: 12), // Espacement entre les boutons
+                              // Bouton pour chercher un joueur en ligne (PvP).
+                              ElevatedButton(
+                                onPressed: () {
+                                  // Navigue vers l'écran Scanner d'Adversaires.
+                                  Navigator.pushNamed(context, '/scanner');
+                                },
+                                child: const Text("Chercher Joueur en Ligne (PvP)"),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.redAccent, // Couleur indicative PvP
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  textStyle: const TextStyle(fontSize: 16),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
+
           // Partie inférieure : Zone de Briefing via Gemini
           Expanded(
             flex: 3,
@@ -122,6 +203,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
                   ),
                 ],
               ),
+              // BriefingWidget lit gameState.battleData qui est mis à jour par startBattle
               child: BriefingWidget(battleData: battleData),
             ),
           ),

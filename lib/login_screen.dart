@@ -1,274 +1,227 @@
-// laboratoire_screen.dart
+// lib/auth/login_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'models/game_state.dart'; // Pour accéder à gameStateProvider
-import 'models/laboratoire_recherche.dart';
-import 'models/agent_pathogene.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Importe Firebase Auth
+// Vous pourriez avoir besoin d'importer cloud_firestore ici si vous créez
+// le document utilisateur initial dans Firestore directement dans ce fichier
+// après l'inscription réussie (voir le TODO).
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class LaboratoireScreen extends ConsumerStatefulWidget {
-  const LaboratoireScreen({Key? key}) : super(key: key);
+
+/// Écran pour l'authentification (Inscription et Connexion) via Firebase Auth.
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({Key? key}) : super(key: key);
 
   @override
-  _LaboratoireScreenState createState() => _LaboratoireScreenState();
+  _AuthScreenState createState() => _AuthScreenState();
 }
 
-class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
-  // Variables pour la création d'agents pathogènes
-  String selectedAgentType = "Bacterie";
-  final TextEditingController agentPvController = TextEditingController();
-  final TextEditingController agentArmureController = TextEditingController();
-  final TextEditingController agentDegatsController = TextEditingController();
-  final TextEditingController agentInitiativeController = TextEditingController();
+class _AuthScreenState extends State<AuthScreen> {
+  // Clé pour identifier le formulaire (utilisé pour valider les champs).
+  final _formKey = GlobalKey<FormState>();
 
-  // Variable pour la création d'anticorps
-  final TextEditingController anticorpsNomController = TextEditingController();
+  // Contrôleurs pour récupérer le texte des champs email et mot de passe.
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  // Variable pour suivre l'état de chargement (lors d'une requête Firebase).
+  bool _isLoading = false;
+
+  // Variable pour basculer entre les modes Inscription et Connexion.
+  bool _isLogin = true; // True pour connexion, False pour inscription
+
+  // Nettoie les contrôleurs lorsque le widget est supprimé.
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  /// Tente de créer un nouvel utilisateur avec email et mot de passe.
+  /// Appelle l'API Firebase Auth pour s'inscrire ou se connecter.
+  Future<void> _tryAuthenticate() async {
+    // Valide le formulaire. Si les champs ne sont pas valides, arrête la fonction.
+    if (!_formKey.currentState!.validate()) {
+      return; // Ne fait rien si le formulaire n'est pas valide
+    }
+
+    // Ferme le clavier.
+    FocusScope.of(context).unfocus();
+
+    // Met l'état de chargement à true et rafraîchit l'UI.
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Obtient l'instance de Firebase Auth.
+      final FirebaseAuth auth = FirebaseAuth.instance;
+
+      // Logique pour l'inscription ou la connexion.
+      if (_isLogin) {
+        // Mode Connexion
+        await auth.signInWithEmailAndPassword(
+          email: _emailController.text.trim(), // trim() enlève les espaces blancs inutiles
+          password: _passwordController.text.trim(),
+        );
+        // Si la connexion réussit, l'écouteur d'état dans main.dart redirigera l'utilisateur.
+        print("Connexion réussie!"); // Log
+
+      } else {
+        // Mode Inscription
+        UserCredential userCredential = await auth.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+        // Si l'inscription réussit, l'écouteur d'état dans main.dart redirigera l'utilisateur.
+        // TODO: Ajouter ici la création du document utilisateur initial dans Firestore (étape B)
+        // Vous auriez besoin de l'UID du nouvel utilisateur : userCredential.user!.uid
+        // et d'une instance de FirebaseFirestore : FirebaseFirestore.instance
+        // Exemple (à implémenter):
+        /*
+         await FirebaseFirestore.instance.collection('playerSystems').doc(userCredential.user!.uid).set({
+             'uid': userCredential.user!.uid,
+             'playerName': 'Nouveau Joueur', // Définir un nom par défaut ou demander à l'utilisateur
+             'createdAt': FieldValue.serverTimestamp(),
+             'baseVirale': { // Structure de base vide ou initiale
+                 'nom': 'Base Initiale',
+                 'agents': [],
+             },
+             // Ajouter d'autres champs initiaux si nécessaire
+         });
+         print("Document utilisateur initial créé dans Firestore pour ${userCredential.user!.uid}"); // Log
+         */
+        print("Inscription réussie!"); // Log
+      }
+    } on FirebaseAuthException catch (e) {
+      // Gère les erreurs spécifiques de Firebase Auth.
+      String message = "Une erreur est survenue."; // Message d'erreur par défaut
+
+      // Adapte le message d'erreur en fonction du code d'erreur Firebase.
+      if (e.code == 'weak-password') {
+        message = "Le mot de passe est trop faible.";
+      } else if (e.code == 'email-already-in-use') {
+        message = "Cette adresse email est déjà utilisée.";
+      } else if (e.code == 'user-not-found') {
+        message = "Aucun utilisateur trouvé pour cette adresse email.";
+      } else if (e.code == 'wrong-password') {
+        message = "Mot de passe incorrect.";
+      } else {
+        message = e.message ?? message; // Utilise le message de Firebase si disponible
+        print("Erreur Firebase Auth: ${e.code} - ${e.message}"); // Log l'erreur complète
+      }
+
+      // Affiche l'erreur à l'utilisateur (ex: via un SnackBar ou un AlertDialog).
+      // Assurez-vous que le contexte est toujours valide (mounted).
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Theme.of(context).colorScheme.error, // Couleur rouge pour les erreurs
+          ),
+        );
+      }
+
+
+    } catch (e) {
+      // Gère les autres types d'erreurs.
+      String message = "Une erreur inattendue est survenue: $e";
+      print("Erreur inattendue: $e"); // Log l'erreur complète
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      // S'exécute toujours après le try/catch.
+      // Met l'état de chargement à false et rafraîchit l'UI.
+      if(mounted) { // Vérifie si le widget est toujours monté avant d'appeler setState
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
-    final gameState = ref.watch(gameStateProvider);
-    final laboratoire = gameState.laboratoireCreation;
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Laboratoire & Recherche'),
+        title: Text(_isLogin ? "Connexion" : "Inscription"), // Titre dynamique
+        backgroundColor: Colors.deepPurple,
       ),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.blue.shade300,
-              Colors.green.shade300,
-              Colors.red.shade300,
-              Colors.purple.shade300,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Laboratoire & Recherche',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  // Section de création d'un agent pathogène
-                  const Text(
-                    'Créer un Agent Pathogène',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: selectedAgentType,
-                    items: const [
-                      DropdownMenuItem(child: Text("Bacterie"), value: "Bacterie"),
-                      DropdownMenuItem(child: Text("Champignon"), value: "Champignon"),
-                      DropdownMenuItem(child: Text("Virus"), value: "Virus"),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          selectedAgentType = value;
-                        });
-                      }
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Type d\'agent',
-                      filled: true,
-                      fillColor: Colors.white70,
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(agentPvController, 'Valeur de base de PV (optionnel)'),
-                  _buildTextField(agentArmureController, 'Valeur de base d\'armure (optionnel)'),
-                  _buildTextField(agentDegatsController, 'Valeur de base de dégâts (optionnel)'),
-                  _buildTextField(agentInitiativeController, 'Valeur de base d\'initiative (optionnel)'),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      try {
-                        AgentPathogene newAgent;
-                        if (_areAgentFieldsFilled()) {
-                          int pv = int.parse(agentPvController.text);
-                          double armure = double.parse(agentArmureController.text);
-                          int degats = int.parse(agentDegatsController.text);
-                          int initiative = int.parse(agentInitiativeController.text);
-                          newAgent = laboratoire.creerAgentPathogeneManual(
-                            type: selectedAgentType,
-                            pv: pv,
-                            armure: armure,
-                            degats: degats,
-                            initiative: initiative,
-                          );
-                        } else {
-                          newAgent = laboratoire.creerAgentPathogene(type: selectedAgentType);
+      body: Center( // Centre le contenu verticalement et horizontalement
+        child: Card( // Encadre le formulaire dans une carte
+          margin: const EdgeInsets.all(20), // Marge autour de la carte
+          child: SingleChildScrollView( // Permet de scroller si le contenu dépasse l'écran
+            child: Padding( // Rembourrage à l'intérieur de la carte
+              padding: const EdgeInsets.all(16),
+              child: Form( // Widget Form pour la validation des champs
+                key: _formKey, // Associe la clé de formulaire
+                child: Column( // Organise les éléments en colonne
+                  mainAxisSize: MainAxisSize.min, // Prend le minimum d'espace vertical
+                  children: <Widget>[
+                    // Champ Email
+                    TextFormField(
+                      controller: _emailController, // Lie le contrôleur
+                      decoration: const InputDecoration(labelText: "Adresse Email"), // Label du champ
+                      keyboardType: TextInputType.emailAddress, // Type de clavier
+                      textCapitalization: TextCapitalization.none, // Pas de majuscule automatique
+                      autocorrect: false, // Pas de correction automatique
+                      validator: (value) { // Fonction de validation
+                        if (value == null || value.isEmpty || !value.contains('@')) {
+                          return "Veuillez entrer une adresse email valide.";
                         }
-                        gameState.addAgent(newAgent);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Agent Pathogène créé !')),
-                        );
-                        _clearAgentFields();
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(e.toString())),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.add),
-                    label: const Text('Créer Agent'),
-                  ),
-                  const SizedBox(height: 24),
-                  // Section de création d'un anticorps
-                  const Text(
-                    'Créer un Anticorps',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                        return null; // Le champ est valide
+                      },
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(anticorpsNomController, 'Nom de l\'anticorps'),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      try {
-                        if (anticorpsNomController.text.isEmpty) {
-                          throw Exception("Veuillez saisir le nom de l'anticorps.");
+                    // Champ Mot de passe
+                    TextFormField(
+                      controller: _passwordController, // Lie le contrôleur
+                      decoration: const InputDecoration(labelText: "Mot de Passe"), // Label du champ
+                      obscureText: true, // Cache le texte (pour les mots de passe)
+                      validator: (value) { // Fonction de validation
+                        if (value == null || value.isEmpty || value.length < 6) {
+                          return "Le mot de passe doit contenir au moins 6 caractères.";
                         }
-                        final newAnticorps = laboratoire.creerAnticorps(nom: anticorpsNomController.text);
-                        gameState.addAnticorps(newAnticorps);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Anticorps créé !')),
-                        );
-                        anticorpsNomController.clear();
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(e.toString())),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.add),
-                    label: const Text('Créer Anticorps'),
-                  ),
-                  const SizedBox(height: 24),
-                  // Affichage des agents existants
-                  const Text(
-                    'Agents Existants',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  ListView.builder(
-                    itemCount: gameState.agents.length,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemBuilder: (context, index) {
-                      final agent = gameState.agents[index];
-                      return Card(
-                        color: Colors.white70,
-                        child: ListTile(
-                          title: Text(agent.nom),
-                          subtitle: Text('PV: ${agent.pv}, Dégâts: ${agent.degats}'),
+                        return null; // Le champ est valide
+                      },
+                    ),
+                    const SizedBox(height: 12), // Espacement vertical
+
+                    // Affiche un indicateur de chargement ou les boutons
+                    if (_isLoading) // Si isLoading est true, affiche le CircularProgressIndicator
+                      const CircularProgressIndicator(),
+                    if (!_isLoading) // Si isLoading est false, affiche les boutons
+                      ElevatedButton(
+                        onPressed: _tryAuthenticate, // Appelle la fonction d'authentification
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurple,
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  // Affichage des anticorps existants
-                  const Text(
-                    'Anticorps Existants',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  ListView.builder(
-                    itemCount: gameState.anticorps.length,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemBuilder: (context, index) {
-                      final anti = gameState.anticorps[index];
-                      return Card(
-                        color: Colors.white70,
-                        child: ListTile(
-                          title: Text(anti.nom),
-                          subtitle: Text('PV: ${anti.pv}, Dégâts: ${anti.degats}'),
-                        ),
-                      );
-                    },
-                  ),
-                ],
+                        child: Text(_isLogin ? "Se Connecter" : "S'inscrire"), // Texte du bouton dynamique
+                      ),
+                    if (!_isLoading) // Si isLoading est false, affiche le bouton de basculement
+                      TextButton(
+                        onPressed: () {
+                          // Bascule entre les modes Inscription et Connexion.
+                          setState(() {
+                            _isLogin = !_isLogin;
+                            _formKey.currentState!.reset(); // Réinitialise la validation du formulaire
+                          });
+                        },
+                        child: Text(_isLogin ? "Créer un compte" : "J'ai déjà un compte"), // Texte du bouton dynamique
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            padding: const EdgeInsets.symmetric(vertical: 12),
-          ),
-          onPressed: () {
-            Navigator.pushNamed(context, '/accueil');
-          },
-          icon: const Icon(Icons.home),
-          label: const Text('Accueil'),
-        ),
-      ),
     );
-  }
-
-  Widget _buildTextField(TextEditingController controller, String label) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: TextField(
-        controller: controller,
-        keyboardType: (label.contains("armure"))
-            ? TextInputType.numberWithOptions(decimal: true)
-            : TextInputType.number,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-          filled: true,
-          fillColor: Colors.white70,
-        ),
-      ),
-    );
-  }
-
-  bool _areAgentFieldsFilled() {
-    return agentPvController.text.isNotEmpty &&
-        agentArmureController.text.isNotEmpty &&
-        agentDegatsController.text.isNotEmpty &&
-        agentInitiativeController.text.isNotEmpty;
-  }
-
-  void _clearAgentFields() {
-    agentPvController.clear();
-    agentArmureController.clear();
-    agentDegatsController.clear();
-    agentInitiativeController.clear();
   }
 }

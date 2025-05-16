@@ -7,6 +7,8 @@ import 'models/agent_pathogene.dart';
 import 'models/bacterie.dart';
 import 'models/champignon.dart';
 import 'models/virus.dart';
+import 'models/anticorps.dart';
+
 
 class LaboratoireScreen extends ConsumerStatefulWidget {
   const LaboratoireScreen({Key? key}) : super(key: key);
@@ -49,21 +51,32 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
     },
   };
 
-  // Variables de création d'anticorps.
-  String selectedAnticorpsOrientation = "Contre Champignon";
+  // --- SUPPRESSION : Retirer la map usedSubtypes locale. Elle est maintenant dans GameState. ---
+  // final Map<String, Set<String>> usedSubtypes = { ... };
 
-  // Pour empêcher la duplication d'un sous-type pour un type donné.
-  final Map<String, Set<String>> usedSubtypes = {
-    "Bacterie": {},
-    "Champignon": {},
-    "Virus": {},
-  };
+  // Coût fixe pour créer un anticorps de base (selon _getAnticorpsCost 'default').
+  // Ce coût est maintenant géré dans LaboratoireCreation.
+  // final int baseAnticorpsCost = 15; // Peut être supprimé si on utilise laboratoire.coutCreationAnticorps
+
 
   @override
   void initState() {
     super.initState();
-    selectedAgentSubtype = agentSubtypes[selectedAgentType]!.first;
+    // L'initialisation du sous-type sélectionné sera gérée dans le build
+    // en fonction de l'état chargé ou initial du GameState.
+    // Retirer le postFrameCallback lié à usedSubtypes local.
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   if (agentSubtypes[selectedAgentType]!.isNotEmpty) {
+    //     selectedAgentSubtype = agentSubtypes[selectedAgentType]!.first;
+    //   }
+    //    setState(() {});
+    // });
   }
+
+  // --- SUPPRESSION : Retirer la méthode _getAnticorpsCost si le coût est fixe ---
+  // /// Renvoie le coût en bio-matériaux nécessaire pour créer un anticorps selon son orientation.
+  // int _getAnticorpsCost(String orientation) { ... }
+
 
   /// Renvoie les statistiques de base pour un agent selon son type.
   Map<String, dynamic> _getAgentStats(String type) {
@@ -79,24 +92,11 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
     }
   }
 
-  /// Renvoie le coût en bio-matériaux nécessaire pour créer un anticorps selon son orientation.
-  int _getAnticorpsCost(String orientation) {
-    switch (orientation) {
-      case "Contre Virus":
-        return 25;
-      case "Contre Bacterie":
-        return 20;
-      case "Contre Champignon":
-        return 15;
-      default:
-        return 15;
-    }
-  }
 
   /// Affiche une progressbar pour une ressource.
-  /// L'énergie est affichée en vert, les bio-matériaux en bleu.
   Widget _buildResourceProgress(String label, int value) {
     Color color = (label == "Énergie") ? Colors.green : Colors.blue;
+    final double percentage = (value / 100).clamp(0.0, 1.0);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -105,7 +105,7 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
         SizedBox(
           width: 100,
           child: LinearProgressIndicator(
-            value: value / 100,
+            value: percentage,
             minHeight: 6,
             backgroundColor: Colors.grey.shade300,
             valueColor: AlwaysStoppedAnimation<Color>(color),
@@ -120,87 +120,164 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
   /// Affiche un AlertDialog présentant un récapitulatif textuel des statistiques de l'agent sélectionné.
   void _showAgentDetails(AgentPathogene agent) {
     final stats = _getAgentStats(
-        agent is Bacterie ? "Bacterie" : agent is Champignon ? "Champignon" : "Virus");
+        agent is Bacterie ? "Bacterie" : agent is Champignon ? "Champignon" : agent is Virus ? "Virus" : "Inconnu");
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) => AlertDialog(
-        title: Text(agent.customType ?? agent.nom, style: const TextStyle(fontSize: 14)),
-        content: Table(
-          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-          columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
-          children: stats.entries.map((entry) {
-            return TableRow(children: [
-              Text("${entry.key}:", style: const TextStyle(fontSize: 12)),
-              Text(entry.value.toString(), style: const TextStyle(fontSize: 12))
-            ]);
-          }).toList(),
+        title: Text(agent.customType ?? agent.nom, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Table(
+              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+              columnWidths: const {
+                0: IntrinsicColumnWidth(),
+                1: FlexColumnWidth(),
+              },
+              children: [
+                TableRow(children: [ const Text("Nom:", style: TextStyle(fontSize: 12)), Text(agent.customType ?? agent.nom, style: const TextStyle(fontSize: 12)) ]),
+                TableRow(children: [ const Text("PV:", style: TextStyle(fontSize: 12)), Text(agent.pv.toString(), style: const TextStyle(fontSize: 12)) ]),
+                TableRow(children: [ const Text("Armure:", style: TextStyle(fontSize: 12)), Text(agent.armure.toStringAsFixed(1), style: const TextStyle(fontSize: 12)) ]),
+                TableRow(children: [ const Text("Dégâts:", style: TextStyle(fontSize: 12)), Text(agent.degats.toString(), style: const TextStyle(fontSize: 12)) ]),
+                TableRow(children: [ const Text("Initiative:", style: TextStyle(fontSize: 12)), Text(agent.initiative.toString(), style: const TextStyle(fontSize: 12)) ]),
+                TableRow(children: [ const Text("Type Attaque:", style: TextStyle(fontSize: 12)), Text(agent.typeAttaque, style: const TextStyle(fontSize: 12)) ]),
+              ]
+          ),
         ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Fermer'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
       ),
     );
   }
 
   /// Affiche un AlertDialog présentant un récapitulatif textuel des statistiques de l'anticorps sélectionné.
-  void _showAntibodyDetails(dynamic anti) {
-    // Pour l'anticorps, nous affichons PV et Dégâts en résumé.
+  void _showAntibodyDetails(Anticorps anti) {
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) => AlertDialog(
-        title: Text(anti.nom, style: const TextStyle(fontSize: 14)),
-        content: Table(
-          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-          columnWidths: const {0: IntrinsicColumnWidth(), 1: FlexColumnWidth()},
-          children: [
-            TableRow(children: [
-              const Text("PV:", style: TextStyle(fontSize: 12)),
-              Text(anti.pv.toString(), style: const TextStyle(fontSize: 12))
-            ]),
-            TableRow(children: [
-              const Text("Dégâts:", style: TextStyle(fontSize: 12)),
-              Text(anti.degats.toString(), style: const TextStyle(fontSize: 12))
-            ]),
-          ],
+        title: Text(anti.nom, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Table(
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            columnWidths: const {
+              0: IntrinsicColumnWidth(),
+              1: FlexColumnWidth(),
+            },
+            children: [
+              TableRow(children: [
+                const Text("Nom:", style: TextStyle(fontSize: 12)),
+                Text(anti.nom, style: const TextStyle(fontSize: 12))
+              ]),
+              TableRow(children: [
+                const Text("PV:", style: TextStyle(fontSize: 12)),
+                Text(anti.pv.toString(), style: const TextStyle(fontSize: 12))
+              ]),
+              TableRow(children: [
+                const Text("Type Attaque:", style: TextStyle(fontSize: 12)),
+                Text(anti.typeAttaque, style: const TextStyle(fontSize: 12))
+              ]),
+              TableRow(children: [
+                const Text("Dégâts:", style: TextStyle(fontSize: 12)),
+                Text(anti.degats.toString(), style: const TextStyle(fontSize: 12))
+              ]),
+              TableRow(children: [
+                const Text("Coût Ressources:", style: TextStyle(fontSize: 12)),
+                Text(anti.coutRessources.toString(), style: const TextStyle(fontSize: 12))
+              ]),
+              TableRow(children: [
+                const Text("Temps Production:", style: TextStyle(fontSize: 12)),
+                Text("${anti.tempsProduction}s", style: const TextStyle(fontSize: 12))
+              ]),
+            ],
+          ),
         ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Fermer'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
       ),
     );
   }
 
-  /// Retourne l'icône représentant un agent, en fonction de son type.
+
+  /// Retourne l'icône représentant un agent, en fonction de son type et sous-type.
   Widget _getAgentIcon(AgentPathogene agent) {
-    if (agent is Bacterie) {
-      return const Icon(Icons.biotech, size: 20, color: Colors.purple);
-    } else if (agent is Champignon) {
-      return const Icon(Icons.eco, size: 20, color: Colors.brown);
-    } else if (agent is Virus) {
-      return const Icon(Icons.coronavirus, size: 20, color: Colors.red);
+    IconData icon = Icons.person;
+    Color color = Colors.grey;
+
+    String? agentKey = agent.customType ?? (agent is Bacterie ? "Bacterie" : agent is Champignon ? "Champignon" : agent is Virus ? "Virus" : null);
+    String? subKey = agent.customType != null ? agent.customType! : null;
+
+    if (agentKey != null && subtypeDetails.containsKey(agentKey)) {
+      if (subKey != null && subtypeDetails[agentKey]!.containsKey(subKey)) {
+        icon = subtypeDetails[agentKey]![subKey]!["icon"] ?? icon;
+        color = subtypeDetails[agentKey]![subKey]!["color"] ?? color;
+      } else if (subKey == null && subtypeDetails[agentKey]!.containsKey(agentKey)) {
+        icon = subtypeDetails[agentKey]![agentKey]!["icon"] ?? icon;
+        color = subtypeDetails[agentKey]![agentKey]!["color"] ?? color;
+      }
+    } else {
+      if (agent is Bacterie) { icon = Icons.biotech; color = Colors.purple; }
+      else if (agent is Champignon) { icon = Icons.eco; color = Colors.brown; }
+      else if (agent is Virus) { icon = Icons.coronavirus; color = Colors.red; }
     }
-    return const Icon(Icons.person, size: 20, color: Colors.grey);
+
+    return Icon(icon, size: 20, color: color);
   }
+
+
+  /// Retourne l'icône représentant un anticorps.
+  Widget _getAntibodyIcon(Anticorps anti) {
+    // Utilise une icône générique pour l'anticorps basique.
+    return const Icon(Icons.shield, color: Colors.blueGrey, size: 20);
+  }
+
 
   @override
   Widget build(BuildContext context) {
+    // ref.watch écoute les changements du GameState
     final gameState = ref.watch(gameStateProvider);
     final laboratoire = gameState.laboratoireCreation;
     final int energie = gameState.ressources.energie;
     final int bio = gameState.ressources.bioMateriaux;
 
-    // Mise à jour de la liste des sous-types disponibles.
+    // --- AJUSTEMENT : Accéder à usedAgentSubtypes depuis le GameState. ---
+    // Utilise la map persistante pour déterminer les sous-types disponibles.
     List<String> availableSubtypes = agentSubtypes[selectedAgentType]!
-        .where((s) => !usedSubtypes[selectedAgentType]!.contains(s))
+        .where((s) => !gameState.usedAgentSubtypes[selectedAgentType]!.contains(s)) // Utilise gameState.usedAgentSubtypes
         .toList();
-    if (availableSubtypes.isNotEmpty) {
-      selectedAgentSubtype ??= availableSubtypes.first;
-    } else {
+
+    // S'assurer qu'un sous-type est sélectionné s'il y en a, ou null sinon.
+    // Fait ceci ici dans build car initState n'a pas accès au GameState via ref.
+    // Cela garantit que le dropdown est toujours synchronisé avec l'état actuel après un chargement Hive.
+    if (availableSubtypes.isNotEmpty && (selectedAgentSubtype == null || !availableSubtypes.contains(selectedAgentSubtype))) {
+      // Si le sous-type actuel n'est plus disponible ou n'est pas initialisé, sélectionner le premier disponible.
+      selectedAgentSubtype = availableSubtypes.first;
+    } else if (availableSubtypes.isEmpty) {
+      // Si aucun sous-type disponible, sélectionner null.
       selectedAgentSubtype = null;
     }
 
+
     // Coût énergétique pour créer un agent.
-    const int energyCost = 20;
+    const int energyCostAgent = 20;
+    // Coût en bio-matériaux pour créer un anticorps de base.
+    final int bioCostAnticorps = laboratoire.coutCreationAnticorps;
+
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Laboratoire & Recherche"),
+        title: const Text("Laboratoire & Création"),
         backgroundColor: Colors.deepPurple,
       ),
       body: SingleChildScrollView(
@@ -227,6 +304,7 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                     const Text("Créer un Agent Pathogène",
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
+                    // Dropdown pour sélectionner le Type principal
                     DropdownButtonFormField<String>(
                       value: selectedAgentType,
                       items: agentSubtypes.keys
@@ -239,7 +317,11 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                         if (v != null) {
                           setState(() {
                             selectedAgentType = v;
-                            selectedAgentSubtype = agentSubtypes[selectedAgentType]!.first;
+                            // Réinitialise le sous-type sélectionné lorsque le type principal change
+                            final avail = agentSubtypes[selectedAgentType]!
+                                .where((s) => !gameState.usedAgentSubtypes[selectedAgentType]!.contains(s)) // Utilise gameState.usedAgentSubtypes
+                                .toList();
+                            selectedAgentSubtype = avail.isNotEmpty ? avail.first : null;
                           });
                         }
                       },
@@ -250,8 +332,8 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // Liste déroulante pour le sous-type.
-                    DropdownButtonFormField<String>(
+                    // Liste déroulante pour le sous-type spécifique
+                    DropdownButtonFormField<String?>(
                       value: selectedAgentSubtype,
                       items: availableSubtypes
                           .map((s) => DropdownMenuItem(
@@ -259,7 +341,7 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                         child: Text(s, style: const TextStyle(fontSize: 12)),
                       ))
                           .toList(),
-                      onChanged: (v) {
+                      onChanged: availableSubtypes.isEmpty ? null : (v) {
                         if (v != null) {
                           setState(() {
                             selectedAgentSubtype = v;
@@ -271,25 +353,22 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       ),
+                      hint: availableSubtypes.isEmpty ? const Text("Aucun sous-type dispo") : null,
                     ),
                     const SizedBox(height: 8),
+                    // Bouton pour déclencher la création de l'agent.
                     ElevatedButton.icon(
-                      onPressed: () {
-                        if (selectedAgentSubtype == null) {
+                      onPressed: selectedAgentSubtype == null
+                          ? null
+                          : () {
+                        if (energie < energyCostAgent) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Aucun sous-type disponible.")),
-                          );
-                          return;
-                        }
-                        if (energie < energyCost) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Pas assez d'énergie pour créer un agent.")),
+                            SnackBar(content: Text("Pas assez d'énergie pour créer un agent ($energyCostAgent requis).")),
                           );
                           return;
                         }
                         try {
-                          // Consommer l'énergie.
-                          gameState.consommerEnergie(energyCost);
+                          gameState.consommerEnergie(energyCostAgent);
                           final stats = _getAgentStats(selectedAgentType);
                           final newAgent = laboratoire.creerAgentPathogeneManual(
                             type: selectedAgentType,
@@ -298,18 +377,21 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                             degats: stats["Dégâts"],
                             initiative: stats["Initiative"],
                           );
-                          // Stocker le sous-type dans customType pour servir de nom.
                           newAgent.customType = selectedAgentSubtype!;
-                          usedSubtypes[selectedAgentType]!.add(selectedAgentSubtype!);
-                          gameState.addAgent(newAgent);
+
+                          gameState.addAgentToBase(newAgent);
+
+                          // --- AJUSTEMENT : Marquer le sous-type comme utilisé via GameState. ---
+                          gameState.markAgentSubtypeAsUsed(selectedAgentType, selectedAgentSubtype!);
+
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("Agent Pathogène créé !")),
                           );
+                          // setState est nécessaire ici pour que le dropdown des sous-types se mette à jour
+                          // immédiatement après la création, recalculant les availableSubtypes.
                           setState(() {
-                            final avail = agentSubtypes[selectedAgentType]!
-                                .where((s) => !usedSubtypes[selectedAgentType]!.contains(s))
-                                .toList();
-                            selectedAgentSubtype = avail.isNotEmpty ? avail.first : null;
+                            // La logique de sélection du premier sous-type disponible est déjà gérée en haut du build.
+                            // On force juste la reconstruction pour que la liste availableSubtypes soit recalculée.
                           });
                         } catch (e) {
                           ScaffoldMessenger.of(context)
@@ -317,7 +399,7 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                         }
                       },
                       icon: const Icon(Icons.add, size: 16),
-                      label: const Text("Créer Agent", style: TextStyle(fontSize: 12)),
+                      label: Text("Créer Agent (${energyCostAgent} Énergie)", style: const TextStyle(fontSize: 12)),
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
                     ),
                   ],
@@ -332,54 +414,45 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                 padding: const EdgeInsets.all(8),
                 child: Column(
                   children: [
-                    const Text("Créer un Anticorps",
+                    const Text("Créer un Anticorps Basique",
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      value: selectedAnticorpsOrientation,
-                      items: const [
-                        DropdownMenuItem(child: Text("Contre Virus", style: TextStyle(fontSize: 12)), value: "Contre Virus"),
-                        DropdownMenuItem(child: Text("Contre Bacterie", style: TextStyle(fontSize: 12)), value: "Contre Bacterie"),
-                        DropdownMenuItem(child: Text("Contre Champignon", style: TextStyle(fontSize: 12)), value: "Contre Champignon"),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) {
-                          setState(() {
-                            selectedAnticorpsOrientation = v;
-                          });
-                        }
-                      },
-                      decoration: const InputDecoration(
-                        labelText: "Orientation",
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
+
+                    // Bouton pour déclencher la création de l'anticorps.
                     ElevatedButton.icon(
                       onPressed: () {
-                        final cost = _getAnticorpsCost(selectedAnticorpsOrientation);
+                        final cost = bioCostAnticorps;
                         if (bio < cost) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Pas assez de bio-matériaux pour créer un anticorps.")),
+                            SnackBar(content: Text("Pas assez de bio-matériaux pour créer un anticorps basique ($cost requis).")),
                           );
                           return;
                         }
                         try {
                           gameState.consommerBioMateriaux(cost);
-                          final autoName = "Anticorps-${gameState.anticorps.length + 1}";
-                          final newAnti = laboratoire.creerAnticorps(nom: autoName, coutRessources: cost);
+                          final autoName = "Anticorps Basique-${gameState.anticorps.length + 1}";
+
+                          final newAnti = laboratoire.creerAnticorps(
+                            nom: autoName,
+                            coutRessources: cost,
+                            typeAttaque: "Généraliste",
+                            pv: 80,
+                            degats: 20,
+                            tempsProduction: 10,
+                          );
+
                           gameState.addAnticorps(newAnti);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Anticorps créé !")),
+                            const SnackBar(content: Text("Anticorps Basique créé !")),
                           );
+                          // Pas de setState nécessaire ici car gameState.addAnticorps(newAnti) appelle notifyListeners()
                         } catch (e) {
                           ScaffoldMessenger.of(context)
                               .showSnackBar(SnackBar(content: Text(e.toString())));
                         }
                       },
                       icon: const Icon(Icons.add, size: 16),
-                      label: const Text("Créer Anticorps", style: TextStyle(fontSize: 12)),
+                      label: Text("Créer Anticorps Basique ($bioCostAnticorps Bio-Mat.)", style: const TextStyle(fontSize: 12)),
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
                     ),
                   ],
@@ -387,32 +460,46 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            // Liste des agents existants affichée en grille.
+            // Liste des agents existants (dans la base virale du joueur) affichée en grille.
             Card(
               margin: const EdgeInsets.all(4),
               child: Padding(
                 padding: const EdgeInsets.all(8),
                 child: Column(
                   children: [
-                    const Text("Agents Existants", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text("Mes Agents Pathogènes", style: TextStyle(fontWeight: FontWeight.bold)),
                     const Divider(),
-                    gameState.agents.isEmpty
+                    // Accéder aux agents via baseVirale.agents
+                    gameState.baseVirale.agents.isEmpty
                         ? const Text("Aucun agent créé.")
                         : GridView.count(
                       crossAxisCount: 3,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      children: gameState.agents.map((agent) {
+                      childAspectRatio: 1.0,
+                      mainAxisSpacing: 4.0,
+                      crossAxisSpacing: 4.0,
+                      // Boucler sur gameState.baseVirale.agents
+                      children: gameState.baseVirale.agents.map((agent) {
                         final displayName = agent.customType ?? agent.nom;
                         return GestureDetector(
                           onTap: () => _showAgentDetails(agent),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _getAgentIcon(agent),
-                              const SizedBox(height: 4),
-                              Text(displayName, style: const TextStyle(fontSize: 10)),
-                            ],
+                          child: Card(
+                            elevation: 2.0,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _getAgentIcon(agent),
+                                const SizedBox(height: 4),
+                                Text(
+                                  displayName,
+                                  style: const TextStyle(fontSize: 10),
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       }).toList(),
@@ -429,7 +516,7 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                 padding: const EdgeInsets.all(8),
                 child: Column(
                   children: [
-                    const Text("Anticorps Existants", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text("Mes Anticorps", style: TextStyle(fontWeight: FontWeight.bold)),
                     const Divider(),
                     gameState.anticorps.isEmpty
                         ? const Text("Aucun anticorps créé.")
@@ -437,16 +524,28 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                       crossAxisCount: 3,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
+                      childAspectRatio: 1.0,
+                      mainAxisSpacing: 4.0,
+                      crossAxisSpacing: 4.0,
                       children: gameState.anticorps.map((anti) {
                         return GestureDetector(
                           onTap: () => _showAntibodyDetails(anti),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.shield, color: Colors.blueGrey, size: 16),
-                              const SizedBox(height: 4),
-                              Text(anti.nom, style: const TextStyle(fontSize: 10)),
-                            ],
+                          child: Card(
+                            elevation: 2.0,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _getAntibodyIcon(anti),
+                                const SizedBox(height: 4),
+                                Text(
+                                  anti.nom,
+                                  style: const TextStyle(fontSize: 10),
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       }).toList(),
@@ -455,6 +554,7 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
           ],
         ),
       ),
