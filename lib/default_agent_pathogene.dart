@@ -3,12 +3,12 @@ import 'package:hive/hive.dart';
 import 'models/agent_pathogene.dart';
 part 'default_agent_pathogene.g.dart';
 
-@HiveType(typeId: 6)
+@HiveType(typeId: 11)
 class DefaultAgentPathogene extends AgentPathogene {
-  @HiveField(6)
+  @HiveField(11)
   final String agentType; // "A", "B", "O", "AB", ou type personnalisé.
 
-  @HiveField(7)
+  @HiveField(12)
   int level; // Niveau d'évolution de l'agent (pertinent pour A et pour son évolution vers AB).
 
   DefaultAgentPathogene({

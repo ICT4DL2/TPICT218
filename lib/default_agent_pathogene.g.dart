@@ -8,7 +8,7 @@ part of 'default_agent_pathogene.dart';
 
 class DefaultAgentPathogeneAdapter extends TypeAdapter<DefaultAgentPathogene> {
   @override
-  final int typeId = 6;
+  final int typeId = 11;
 
   @override
   DefaultAgentPathogene read(BinaryReader reader) {
@@ -17,38 +17,46 @@ class DefaultAgentPathogeneAdapter extends TypeAdapter<DefaultAgentPathogene> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return DefaultAgentPathogene(
-      nom: fields[0] as String,
-      agentType: fields[6] as String,
-      level: fields[7] as int,
-      pv: fields[1] as int,
-      armure: fields[2] as double,
-      degats: fields[4] as int,
-      initiative: fields[5] as int,
-    )..customType = fields[8] as String?;
+      nom: fields[1] as String,
+      agentType: fields[11] as String,
+      level: fields[12] as int,
+      pv: fields[2] as int,
+      armure: fields[3] as double,
+      degats: fields[5] as int,
+      initiative: fields[6] as int,
+    )
+      ..id = fields[0] as String
+      ..typeAttaque = fields[4] as String
+      ..customType = fields[7] as String?
+      ..mutationLevel = fields[9] as int;
   }
 
   @override
   void write(BinaryWriter writer, DefaultAgentPathogene obj) {
     writer
-      ..writeByte(9)
-      ..writeByte(6)
+      ..writeByte(11)
+      ..writeByte(11)
       ..write(obj.agentType)
-      ..writeByte(7)
+      ..writeByte(12)
       ..write(obj.level)
       ..writeByte(0)
-      ..write(obj.nom)
+      ..write(obj.id)
       ..writeByte(1)
-      ..write(obj.pv)
+      ..write(obj.nom)
       ..writeByte(2)
-      ..write(obj.armure)
+      ..write(obj.pv)
       ..writeByte(3)
-      ..write(obj.typeAttaque)
+      ..write(obj.armure)
       ..writeByte(4)
-      ..write(obj.degats)
+      ..write(obj.typeAttaque)
       ..writeByte(5)
+      ..write(obj.degats)
+      ..writeByte(6)
       ..write(obj.initiative)
-      ..writeByte(8)
-      ..write(obj.customType);
+      ..writeByte(7)
+      ..write(obj.customType)
+      ..writeByte(9)
+      ..write(obj.mutationLevel);
   }
 
   @override

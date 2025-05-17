@@ -17,31 +17,42 @@ class VirusAdapter extends TypeAdapter<Virus> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return Virus(
-      pv: fields[1] as int,
-      armure: fields[2] as double,
-      degats: fields[4] as int,
-      initiative: fields[5] as int,
-    )..customType = fields[8] as String?;
+      pv: fields[2] as int,
+      armure: fields[3] as double,
+      degats: fields[5] as int,
+      initiative: fields[6] as int,
+    )
+      ..id = fields[0] as String
+      ..typeAttaque = fields[4] as String
+      ..customType = fields[7] as String?
+      ..level = fields[8] as int
+      ..mutationLevel = fields[9] as int;
   }
 
   @override
   void write(BinaryWriter writer, Virus obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(10)
       ..writeByte(0)
-      ..write(obj.nom)
+      ..write(obj.id)
       ..writeByte(1)
-      ..write(obj.pv)
+      ..write(obj.nom)
       ..writeByte(2)
-      ..write(obj.armure)
+      ..write(obj.pv)
       ..writeByte(3)
-      ..write(obj.typeAttaque)
+      ..write(obj.armure)
       ..writeByte(4)
-      ..write(obj.degats)
+      ..write(obj.typeAttaque)
       ..writeByte(5)
+      ..write(obj.degats)
+      ..writeByte(6)
       ..write(obj.initiative)
+      ..writeByte(7)
+      ..write(obj.customType)
       ..writeByte(8)
-      ..write(obj.customType);
+      ..write(obj.level)
+      ..writeByte(9)
+      ..write(obj.mutationLevel);
   }
 
   @override

@@ -1,29 +1,26 @@
 // lib/models/combat_result.dart
 
-/// Représente le résultat d'un combat simulé.
+/// Représente le résultat d'une simulation de combat.
 class CombatResult {
-  // Indique si le joueur a gagné le combat.
+  /// Indique si le joueur a gagné le combat.
   final bool playerWon;
 
-  // Liste des actions ou événements survenus pendant le combat, pour le journal.
-  final List<String> combatLog;
-
-  // Un résumé structuré du combat, destiné à être envoyé à l'IA Gemini.
+  /// Résumé textuel du combat, potentiellement pour Gemini.
   final String battleSummaryForGemini;
 
-  // Placeholders pour les récompenses (ressources, points de recherche, etc.)
-  // Nous pourrons les ajouter plus tard selon les mécaniques exactes.
-  // final Map<String, dynamic> rewards;
+  // --- NOUVEAU : Récompenses obtenues après le combat ---
+  final Map<String, dynamic> rewards;
 
-  // Placeholders pour les mises à jour de la mémoire immunitaire.
-  // final List<String> defeatedPathogenTypes;
+  // --- NOUVEAU : Types de pathogènes vaincus (pour la mémoire immunitaire) ---
+  final Set<String> defeatedPathogenTypes;
 
 
+  /// Constructeur pour créer un résultat de combat.
   CombatResult({
-    required this.playerWon, // Le joueur a-t-il gagné ?
-    required this.combatLog, // Le journal complet du combat
-    required this.battleSummaryForGemini, // Le résumé pour Gemini
-    // this.rewards = const {}, // Les récompenses gagnées
-    // this.defeatedPathogenTypes = const [], // Types de pathogènes vaincus
+    required this.playerWon,
+    required this.battleSummaryForGemini,
+    // --- NOUVEAU : Ajoute les paramètres rewards et defeatedPathogenTypes ---
+    required this.rewards,
+    required this.defeatedPathogenTypes,
   });
 }

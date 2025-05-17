@@ -17,31 +17,43 @@ class AnticorpsAdapter extends TypeAdapter<Anticorps> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return Anticorps(
-      nom: fields[0] as String,
-      pv: fields[1] as int,
-      typeAttaque: fields[2] as String,
-      degats: fields[3] as int,
-      coutRessources: fields[4] as int,
-      tempsProduction: fields[5] as int,
-    );
+      nom: fields[1] as String,
+      pv: fields[2] as int,
+      typeAttaque: fields[3] as String,
+      degats: fields[4] as int,
+      coutRessources: fields[5] as int,
+      tempsProduction: fields[6] as int,
+    )
+      ..id = fields[0] as String
+      ..level = fields[7] as int
+      ..specialization = fields[8] as String?
+      ..memory = (fields[9] as List).cast<String>().toSet();
   }
 
   @override
   void write(BinaryWriter writer, Anticorps obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(10)
       ..writeByte(0)
-      ..write(obj.nom)
+      ..write(obj.id)
       ..writeByte(1)
-      ..write(obj.pv)
+      ..write(obj.nom)
       ..writeByte(2)
-      ..write(obj.typeAttaque)
+      ..write(obj.pv)
       ..writeByte(3)
-      ..write(obj.degats)
+      ..write(obj.typeAttaque)
       ..writeByte(4)
-      ..write(obj.coutRessources)
+      ..write(obj.degats)
       ..writeByte(5)
-      ..write(obj.tempsProduction);
+      ..write(obj.coutRessources)
+      ..writeByte(6)
+      ..write(obj.tempsProduction)
+      ..writeByte(7)
+      ..write(obj.level)
+      ..writeByte(8)
+      ..write(obj.specialization)
+      ..writeByte(9)
+      ..write(obj.memory.toList());
   }
 
   @override
