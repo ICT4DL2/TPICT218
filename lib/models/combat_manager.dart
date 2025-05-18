@@ -1,38 +1,57 @@
 // lib/models/combat_manager.dart
-import 'dart:math';
-import 'agent_pathogene.dart';
+import 'dart:math'; // Importe pour Random si nécessaire
+import 'agent_pathogene.dart'; // Importe les modèles nécessaires
 import 'anticorps.dart';
 import 'base_virale.dart';
-import 'combat_result.dart'; // Assurez-vous que ce fichier existe
+// N'importe PAS CombatResult ici pour éviter la dépendance circulaire.
 
-/// Gère la simulation d'un combat entre les anticorps du joueur et une base virale ennemie.
+
+/// Classe simple pour contenir le résultat brut d'une simulation de combat.
+/// Utilisé par CombatManager pour retourner les données à GameState.
+/// Cette classe n'a PAS besoin d'être persistée par Hive si elle n'est utilisée
+/// que temporairement pendant la simulation.
+class SimulationResult {
+  final bool playerWon;
+  final String battleSummaryForGemini;
+  final Map<String, dynamic> rewards; // TODO: Définir une classe Rewards plus structurée
+  final Set<String> defeatedPathogenTypes; // Types d'agents pathogènes vaincus
+
+  SimulationResult({
+    required this.playerWon,
+    required this.battleSummaryForGemini,
+    required this.rewards,
+    required this.defeatedPathogenTypes,
+  });
+}
+
+
+/// Gère la logique de simulation d'un combat entre les anticorps du joueur et une base virale ennemie.
 class CombatManager {
-  // --- NOUVEAU : Stocke les unités du joueur et la base ennemie dans l'instance ---
+  // Stocke les unités du joueur et la base ennemie dans l'instance
   final List<Anticorps> playerAnticorps;
   final BaseVirale enemyBase;
 
-  // --- NOUVEAU : Constructeur qui reçoit les unités et la base ---
+  // Constructeur qui reçoit les unités et la base
   CombatManager({
     required this.playerAnticorps,
     required this.enemyBase,
   });
 
   /// Simule le déroulement d'un combat.
-  /// Utilise les unités et la base stockées dans l'instance du CombatManager.
-  CombatResult simulateCombat() { // La méthode ne prend plus de paramètres ici
+  /// Retourne un SimulationResult contenant les données brutes du combat.
+  SimulationResult simulateCombat() { // La méthode retourne SimulationResult
     // Copie des listes pour ne pas modifier les originaux pendant le combat
     List<Anticorps> playerUnits = List.from(playerAnticorps);
     List<AgentPathogene> enemyUnits = List.from(enemyBase.agents);
 
     // TODO: Implémenter la logique de combat détaillée ici.
-    // - Initialiser l'ordre des tours basé sur l'initiative (en utilisant unit.initiative).
-    // - Alterner les attaques entre les unités du joueur et de l'ennemi.
-    // - Appliquer les dégâts en tenant compte de l'armure (unit.armure).
-    // - Utiliser les attaques spéciales (unit.specialAttack()) en fonction du niveau (unit.level >= 5).
-    // - Gérer la mémoire immunitaire des anticorps (anti.hasMemoryFor(pathogenSubtype)) pour les dégâts réduits ou l'immunité.
-    // - Gérer la mutation des agents pathogènes (agent.mutationLevel) pour contourner la mémoire.
-    // - Retirer les unités dont les PV (unit.pv) tombent à 0 ou moins.
-    // - Déterminer la victoire/défaite lorsque l'une des listes d'unités est vide.
+    // - Déterminer l'ordre des tours (initiative).
+    // - Chaque unité attaque à son tour.
+    // - Calculer les dégâts en tenant compte de l'armure, de la spécialisation, de la mémoire immunitaire, etc.
+    // - Gérer les PV des unités.
+    // - Déterminer quand un camp est vaincu.
+    // - Collecter les pathogènes vaincus pour la mémoire immunitaire.
+    // - Calculer les récompenses.
 
     String summary = "Début du combat...\n";
     // Exemple de simulation très simplifiée pour éviter les erreurs de compilation
@@ -66,10 +85,10 @@ class CombatManager {
     Map<String, dynamic> rewards = {}; // Exemple vide
     Set<String> defeatedPathogenTypes = {}; // Exemple vide
 
-    return CombatResult(
+    // --- Retourne un SimulationResult ---
+    return SimulationResult(
       playerWon: playerWon,
       battleSummaryForGemini: summary,
-      // --- NOUVEAU : Retourne les récompenses et types vaincus ---
       rewards: rewards,
       defeatedPathogenTypes: defeatedPathogenTypes,
     );

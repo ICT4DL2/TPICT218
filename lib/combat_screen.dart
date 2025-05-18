@@ -2,26 +2,25 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-// Importe les widgets ou modèles nécessaires
-import 'gemini/briefing_widget.dart'; // Assurez-vous que le chemin est correct
-import 'models/game_state.dart'; // Importe le GameStateProvider
-
-// Importe les modèles pour créer la base ennemie de test (PNJ)
-import 'models/bacterie.dart'; // Importe un type de pathogène concret
-import 'models/champignon.dart'; // Importe Champignon si utilisé dans _createTestEnemyBase
-import 'models/virus.dart'; // Importe Virus si utilisé dans _createTestEnemyBase
-import 'models/base_virale.dart'; // Importe la classe BaseVirale
+import 'dart:async';
 
 
-/// CustomPainter pour dessiner des carrés concentriques et des lignes radiales
-/// en vert accentué, simulant un écran de radar sur un fond carré.
+import 'gemini/briefing_widget.dart';
+import 'models/game_state.dart';
+import 'package:uuid/uuid.dart';
+
+import 'models/bacterie.dart';
+import 'models/champignon.dart';
+import 'models/virus.dart';
+import 'models/base_virale.dart';
+import 'models/agent_pathogene.dart';
+
+
 class RadarPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
 
-    // Dessin de trois carrés concentriques
     final Paint squarePaint = Paint()
       ..color = Colors.greenAccent
       ..style = PaintingStyle.stroke
@@ -38,17 +37,12 @@ class RadarPainter extends CustomPainter {
       canvas.drawRect(rect, squarePaint);
     }
 
-    // Dessin des lignes centrales et diagonales en vert accentué
     final Paint linePaint = Paint()
       ..color = Colors.greenAccent
       ..strokeWidth = 2.0;
-    // Ligne verticale
     canvas.drawLine(Offset(center.dx, 0), Offset(center.dx, size.height), linePaint);
-    // Ligne horizontale
     canvas.drawLine(Offset(0, center.dy), Offset(size.width, center.dy), linePaint);
-    // Diagonale de gauche à droite
     canvas.drawLine(Offset(0, 0), Offset(size.width, size.height), linePaint);
-    // Diagonale de droite à gauche
     canvas.drawLine(Offset(size.width, 0), Offset(0, size.height), linePaint);
   }
 
@@ -57,7 +51,6 @@ class RadarPainter extends CustomPainter {
 }
 
 
-/// Écran de combat (Holo-Simulateur de Combat) où la simulation est lancée et le briefing affiché.
 class CombatScreen extends ConsumerStatefulWidget {
   const CombatScreen({Key? key}) : super(key: key);
 
@@ -65,36 +58,90 @@ class CombatScreen extends ConsumerStatefulWidget {
   _CombatScreenState createState() => _CombatScreenState();
 }
 
-/// L'état mutable de l'écran CombatScreen.
 class _CombatScreenState extends ConsumerState<CombatScreen> {
 
-  /// Méthode utilitaire pour créer une base ennemie de test simple (PNJ).
-  /// Cette base sera utilisée pour les combats "contre la machine".
+  bool _isSearchingPvP = false;
+  BaseVirale? _foundEnemyBase;
+  String? _foundEnemyEmail;
+  String _pvpStatusMessage = "Prêt pour le combat.";
+
+
   BaseVirale _createTestEnemyBase() {
     BaseVirale testBase = BaseVirale(nom: "Base PNJ Facile");
 
-    // Ajoute quelques pathogènes de test à la base PNJ.
-    // --- CORRECTION : Retire typeAttaque du constructeur Bacterie ---
-    // Le typeAttaque ("perforante") est défini dans le constructeur Bacterie lui-même.
     testBase.ajouterAgent(Bacterie(pv: 80, armure: 5.0, degats: 15, initiative: 6));
     testBase.ajouterAgent(Bacterie(pv: 70, armure: 4.0, degats: 18, initiative: 7));
     testBase.ajouterAgent(Bacterie(pv: 90, armure: 6.0, degats: 12, initiative: 5));
 
-    // Exemple pour d'autres types si vous les ajoutez (ajustez selon leurs constructeurs) :
-    // testBase.ajouterAgent(Champignon(pv: 60, armure: 3.0, degats: 25, initiative: 8)); // Si Champignon définit son typeAttaque
-    // testBase.ajouterAgent(Virus(pv: 50, armure: 2.0, degats: 30, initiative: 9)); // Si Virus définit son typeAttaque
+    final Uuid uuid = Uuid();
+    for (var agent in testBase.agents) {
+      agent.id = uuid.v4();
+      agent.level = 1;
+      agent.mutationLevel = 0;
+    }
 
     return testBase;
   }
 
+  void _startPvPSearch() {
+    if (_isSearchingPvP) return;
+
+    setState(() {
+      _isSearchingPvP = true;
+      _foundEnemyBase = null;
+      _foundEnemyEmail = null;
+      _pvpStatusMessage = "Recherche d'adversaire en cours...";
+    });
+
+    Timer(const Duration(seconds: 3), () {
+      BaseVirale foundOpponentBase = _createTestEnemyBase();
+      String opponentEmail = "adversaire_simule@example.com";
+
+      setState(() {
+        _isSearchingPvP = false;
+        _foundEnemyBase = foundOpponentBase;
+        _foundEnemyEmail = opponentEmail;
+        _pvpStatusMessage = "Adversaire trouvé : ${foundOpponentBase.nom}";
+      });
+
+      _startCombat(_foundEnemyBase!, opponentIdentifier: _foundEnemyEmail!, opponentType: "PvP");
+    });
+  }
+
+  void _startCombat(BaseVirale enemyBase, {String opponentIdentifier = "Machine", String opponentType = "PNJ"}) {
+    final gameStateActions = ref.read(gameStateProvider);
+
+    if (gameStateActions.playerAnticorps.isEmpty) {
+      setState(() {
+        _pvpStatusMessage = "Impossible de lancer le combat : Vous n'avez pas d'anticorps !";
+        _foundEnemyEmail = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Impossible de lancer le combat : Vous n'avez pas d'anticorps !")),
+      );
+      return;
+    }
+
+    gameStateActions.startBattle(
+      enemyBase,
+      opponentIdentifier: opponentIdentifier,
+      opponentType: opponentType,
+    );
+
+    setState(() {
+      _pvpStatusMessage = opponentType == "PvP"
+          ? "Combat contre $opponentIdentifier en cours..."
+          : "Combat contre la Machine en cours...";
+      _foundEnemyBase = null;
+    });
+  }
+
+
   @override
   Widget build(BuildContext context) {
-    // ref.watch écoute les changements du GameState pour reconstruire le widget
     final gameState = ref.watch(gameStateProvider);
-    final String battleData = gameState.battleData; // Le BriefingWidget lit cette donnée
+    final String battleData = gameState.battleData;
 
-    // ref.read est utilisé pour accéder à l'état (ou appeler des méthodes sur l'état)
-    final gameStateActions = ref.read(gameStateProvider); // Obtenir une référence pour les actions
 
     return Scaffold(
       appBar: AppBar(
@@ -104,7 +151,6 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
       ),
       body: Column(
         children: [
-          // Partie supérieure : Arène de combat (écran radar) avec les boutons superposés.
           Expanded(
             flex: 7,
             child: Center(
@@ -128,49 +174,63 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  // Utilise un Stack pour superposer le radar et les boutons
                   child: Stack(
                     children: [
-                      // 1. Le dessin du radar (en arrière-plan dans le Stack)
                       AspectRatio(
                         aspectRatio: 1,
                         child: CustomPaint(
                           painter: RadarPainter(),
                         ),
                       ),
-                      // 2. Les boutons superposés (alignés en bas au centre du Stack)
+
                       Align(
-                        alignment: Alignment.bottomCenter, // Aligne les boutons en bas au centre
+                        alignment: Alignment.topCenter,
                         child: Padding(
-                          padding: const EdgeInsets.only(bottom: 20.0), // Ajoute un peu de padding en bas
-                          child: Column( // Utilise une colonne pour empiler les boutons
-                            mainAxisSize: MainAxisSize.min, // Prend le minimum d'espace vertical
+                          padding: const EdgeInsets.only(top: 20.0),
+                          child: Text(
+                            _pvpStatusMessage,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.greenAccent,
+                              shadows: [
+                                Shadow(
+                                  blurRadius: 8.0,
+                                  color: Colors.black,
+                                  offset: Offset(1.0, 1.0),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 20.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Bouton pour lancer le combat PNJ (contre la machine).
                               ElevatedButton(
-                                onPressed: () {
-                                  // Créer une base ennemie de test (PNJ).
+                                onPressed: _isSearchingPvP ? null : () {
                                   BaseVirale enemy = _createTestEnemyBase();
-                                  // Lancer le combat PNJ via GameState.
-                                  gameStateActions.startBattle(enemy);
+                                  _startCombat(enemy);
                                 },
                                 child: const Text("Jouer contre la Machine (PNJ)"),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blueGrey, // Couleur indicative PNJ
+                                  backgroundColor: Colors.blueGrey,
                                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                                   textStyle: const TextStyle(fontSize: 16),
                                 ),
                               ),
-                              const SizedBox(height: 12), // Espacement entre les boutons
-                              // Bouton pour chercher un joueur en ligne (PvP).
+                              const SizedBox(height: 12),
                               ElevatedButton(
-                                onPressed: () {
-                                  // Navigue vers l'écran Scanner d'Adversaires.
-                                  Navigator.pushNamed(context, '/scanner');
-                                },
-                                child: const Text("Chercher Joueur en Ligne (PvP)"),
+                                onPressed: _isSearchingPvP ? null : _startPvPSearch,
+                                child: Text(_isSearchingPvP ? "Recherche..." : "Chercher Joueur en Ligne (PvP)"),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.redAccent, // Couleur indicative PvP
+                                  backgroundColor: Colors.redAccent,
                                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                                   textStyle: const TextStyle(fontSize: 16),
                                 ),
@@ -186,7 +246,6 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
             ),
           ),
 
-          // Partie inférieure : Zone de Briefing via Gemini
           Expanded(
             flex: 3,
             child: Container(
@@ -203,11 +262,23 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
                   ),
                 ],
               ),
-              // BriefingWidget lit gameState.battleData qui est mis à jour par startBattle
               child: BriefingWidget(battleData: battleData),
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(8),
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurple,
+              padding: const EdgeInsets.symmetric(vertical: 12)),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: const Icon(Icons.home),
+          label: const Text("Accueil"),
+        ),
       ),
     );
   }

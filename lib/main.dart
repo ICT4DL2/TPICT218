@@ -1,22 +1,22 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Importe Firebase Auth pour écouter l'état
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-import 'firebase_options.dart'; // Assurez-vous que ce fichier existe et est correct
+import 'firebase_options.dart';
 
-// Importe les écrans principaux de l'application
 import 'accueil.dart';
 import 'laboratoire_screen.dart';
 import 'combat_screen.dart';
-import 'login_screen.dart'; // Exemple si dans lib/auth/
+import 'login_screen.dart';
+import 'setting_screen.dart';
+import 'journal_screen.dart';
 
-// --- IMPORT : Importe l'écran de Recherche ---
-import 'recherche_screen.dart'; // Assurez-vous que ce fichier existe et que le chemin est correct
+import 'recherche_screen.dart';
 
-import 'models/agent_pathogene.dart'; // Classe de base (peut ne pas avoir de .g.dart si abstraite)
+import 'models/agent_pathogene.dart';
 import 'models/bacterie.dart';
 import 'models/champignon.dart';
 import 'models/virus.dart';
@@ -24,55 +24,50 @@ import 'models/anticorps.dart';
 import 'models/base_virale.dart';
 import 'models/memoire_immunitaire.dart';
 import 'models/ressources_defensives.dart';
-import 'models/game_state.dart'; // Le GameStateProvider
-import 'models/laboratoire_recherche.dart'; // La classe LaboratoireCreation
+import 'models/game_state.dart';
+import 'models/laboratoire_recherche.dart';
+import 'models/combat_result.dart';
 
-/// Point d'entrée principal de l'application.
-/// Initialise Firebase et Hive avant de lancer l'application Flutter.
+
 Future<void> main() async {
-  // S'assure que les bindings Flutter sont initialisés avant d'appeler des méthodes natives.
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialisation de Firebase Core.
-  // Ceci est nécessaire pour utiliser tout service Firebase (Auth, Firestore, etc.).
-  // L'erreur [core/duplicate-app] se produit si cette ligne est exécutée plus d'une fois.
-  // Le paramètre 'name' a aidé à résoudre l'erreur précédemment.
   await Firebase.initializeApp(
-    name: "immunowariors", // Conserver le nom qui a aidé à résoudre l'erreur
-    options: DefaultFirebaseOptions.currentPlatform, // Utilise les options générées par FlutterFire CLI
+    name: "immunowariors",
+    options: DefaultFirebaseOptions.currentPlatform,
   );
-  print("Firebase initialisé."); // Log pour vérifier l'initialisation
+  print("Firebase initialisé.");
 
-  // Initialisation de Hive pour la persistance locale des données.
-  // Doit être appelée une seule fois.
   await Hive.initFlutter();
-  print("Hive initialisé."); // Log
+  print("Hive initialisé.");
 
-  // Enregistrez ici tous vos adaptateurs générés par Hive.
-  // Ceci permet à Hive de savoir comment sérialiser/désérialiser vos objets personnalisés.
-  Hive.registerAdapter(BacterieAdapter());
-  Hive.registerAdapter(ChampignonAdapter());
-  Hive.registerAdapter(VirusAdapter());
-  Hive.registerAdapter(AnticorpsAdapter());
-  Hive.registerAdapter(BaseViraleAdapter());
-  Hive.registerAdapter(MemoireImmunitaireAdapter());
-  Hive.registerAdapter(RessourcesDefensivesAdapter());
-  // Enregistrez l'adaptateur pour DefaultAgentPathogene si vous l'utilisez et avez généré son .g.dart
-  // Hive.registerAdapter(DefaultAgentPathogeneAdapter());
-  print("Adaptateurs Hive enregistrés."); // Log
+  // Enregistrez les adaptateurs générés par Hive.
+  // Assurez-vous que les IDs de type sont uniques pour chaque adaptateur
+  Hive.registerAdapter(BacterieAdapter()); // Type ID 2
+  Hive.registerAdapter(ChampignonAdapter()); // Type ID 3
+  Hive.registerAdapter(VirusAdapter()); // Type ID 5
+  Hive.registerAdapter(AnticorpsAdapter()); // Type ID 1
+  Hive.registerAdapter(BaseViraleAdapter()); // Type ID 4
+  Hive.registerAdapter(MemoireImmunitaireAdapter()); // Type ID 7
+  Hive.registerAdapter(RessourcesDefensivesAdapter()); // Type ID 8
+  Hive.registerAdapter(CombatResultAdapter()); // Type ID 20 (Vérifiez qu'il est unique)
+  Hive.registerAdapter(GameStateAdapter()); // Type ID 6 (Vérifiez qu'il est unique)
 
 
-  // Lance l'application Flutter, encapsulée dans ProviderScope pour Riverpod.
+  print("Adaptateurs Hive enregistrés.");
+
+
+  await Hive.openBox('gameStateBox');
+
+  print("Boîte Hive 'gameStateBox' ouverte.");
+
   runApp(
-    const ProviderScope( // Nécessaire pour que les providers Riverpod fonctionnent
+    const ProviderScope(
       child: MyApp(),
     ),
   );
 }
 
-/// Widget racine de l'application.
-/// Gère les observateurs du cycle de vie de l'application pour la sauvegarde Hive.
-/// Utilise un StreamBuilder pour gérer l'affichage en fonction de l'état d'authentification Firebase.
 class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
 
@@ -80,69 +75,62 @@ class MyApp extends StatefulWidget {
   _MyAppState createState() => _MyAppState();
 }
 
-/// L'état de MyApp, gérant l'observation du cycle de vie et la navigation basée sur l'auth.
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  // S'inscrit comme observateur du cycle de vie au démarrage du widget.
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    print("MyApp initState: Observation du cycle de vie ajoutée.");
   }
 
-  // Se désinscrit comme observateur lorsque le widget est supprimé.
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    print("MyApp dispose: Observation du cycle de vie retirée.");
     super.dispose();
   }
 
-  // Appelé lorsque l'état du cycle de vie de l'application change (ex: mise en arrière-plan, fermeture).
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Sauvegarde l'état du jeu (via GameState) lorsque l'application est mise en pause ou détachée.
     if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
-      // Accède au conteneur Riverpod pour lire le GameStateProvider sans contexte de build.
-      final container = ProviderScope.containerOf(context);
-      final gameState = container.read(gameStateProvider);
-      // Appelle la méthode de sauvegarde définie dans le GameState.
-      gameState.saveState();
-      print("Sauvegarde automatique de l'état Hive déclenchée."); // Log
+      try {
+        final container = ProviderScope.containerOf(context);
+        final gameState = container.read(gameStateProvider);
+        gameState.saveState();
+        print("Sauvegarde automatique de l'état Hive déclenchée.");
+      } catch (e) {
+        print("Erreur lors de la récupération de GameState pour la sauvegarde: $e");
+      }
     }
     super.didChangeAppLifecycleState(state);
   }
 
 
-  /// Construit l'arbre de widgets principal de l'application.
-  /// Utilise StreamBuilder pour écouter l'état d'authentification et afficher l'écran approprié.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ImmunoWarriors', // Titre de l'application
-      theme: ThemeData( // Thème visuel
+      title: 'ImmunoWarriors',
+      theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      // Utilise StreamBuilder pour écouter les changements d'état d'authentification de Firebase.
-      // Ce stream émet un User object (si connecté) ou null (si déconnecté).
       home: StreamBuilder(
-        stream: FirebaseAuth.instance.authStateChanges(), // Le stream à écouter
+        stream: FirebaseAuth.instance.authStateChanges(),
         builder: (ctx, userSnapshot) {
-          // --- Écran de chargement (Splash Screen) ---
-          // Affiché tant que l'état d'authentification initial n'est pas connu.
           if (userSnapshot.connectionState == ConnectionState.waiting) {
-            print("Authentification state: WAITING. Affichage splash screen."); // Log
-            return const Scaffold( // Un simple Scaffold pour l'écran de chargement
-              backgroundColor: Colors.deepPurple, // Couleur de fond
-              body: Center( // Centrer l'indicateur
-                child: Column( // Mettre l'indicateur et un texte en colonne
+            print("Authentification state: WAITING. Affichage splash screen.");
+            return const Scaffold(
+              backgroundColor: Colors.deepPurple,
+              body: Center(
+                child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator( // L'indicateur de chargement
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white), // Couleur de l'indicateur
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
-                    SizedBox(height: 20), // Espacement
+                    SizedBox(height: 20),
                     Text(
-                      "Chargement...", // Texte de chargement
+                      "Chargement...",
                       style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
                   ],
@@ -151,15 +139,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             );
           }
 
-          // --- Si l'utilisateur est connecté ---
-          // userSnapshot.hasData est true et userSnapshot.data contient l'objet User.
           if (userSnapshot.hasData && userSnapshot.data != null) {
-            print("Authentification state: ACTIVE. Utilisateur connecté: ${userSnapshot.data!.uid}. Navigation vers Accueil."); // Log
-            // L'utilisateur est connecté, afficher le Navigator principal de l'application.
-            // Ce Navigator gère les routes des écrans "authentifiés".
+            print("Authentification state: ACTIVE. Utilisateur connecté: ${userSnapshot.data!.uid}. Navigation vers Accueil.");
             return Navigator(
-              initialRoute: '/accueil', // L'écran de démarrage après connexion
-              onGenerateRoute: (settings) { // Définit comment naviguer entre les écrans authentifiés
+              initialRoute: '/accueil',
+              onGenerateRoute: (settings) {
                 Widget page;
                 switch (settings.name) {
                   case '/accueil':
@@ -171,12 +155,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   case '/combat':
                     page = const CombatScreen();
                     break;
-                // --- NOUVEAU : Ajoute la route pour l'écran de Recherche ---
                   case '/recherche':
                     page = const RechercheScreen();
                     break;
+                  case '/settings':
+                    page = const SettingsScreen();
+                    break;
+                  case '/journal':
+                    page = const JournalScreen();
+                    break;
                   default:
-                  // Route inconnue, afficher une page d'erreur ou rediriger vers l'accueil
                     page = Scaffold(appBar: AppBar(title: const Text("Erreur")), body: const Center(child: Text("Page inconnue!")));
                 }
                 return MaterialPageRoute(builder: (context) => page, settings: settings);
@@ -184,27 +172,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             );
           }
 
-          // --- Si l'utilisateur n'est PAS connecté ---
-          // userSnapshot.hasData est false ou userSnapshot.data est null.
-          print("Authentification state: ACTIVE. Aucun utilisateur connecté. Affichage de l'écran d'authentification."); // Log
-          // Afficher l'écran de connexion/inscription.
-          return const AuthScreen(); // Utilise la classe AuthScreen (définie dans login_screen.dart)
+          print("Authentification state: ACTIVE. Aucun utilisateur connecté. Affichage de l'écran d'authentification.");
+          return const AuthScreen();
         },
       ),
-      // Les routes nommées définies ici ne sont utilisées que par le Navigator principal (celui retourné
-      // quand l'utilisateur est connecté). Si vous n'utilisez qu'un seul Navigator racine,
-      // ces routes seraient utilisées par Navigator.pushNamed(context, ...).
-      // Dans cette structure avec un Navigator imbriqué, elles sont gérées par onGenerateRoute.
-      // On peut les laisser ici pour référence ou si elles sont utilisées dans d'autres contextes.
-      /*
-      routes: {
-         '/accueil': (context) => const Accueil(),
-         '/laboratoire': (context) => const LaboratoireScreen(),
-         '/combat': (context) => const CombatScreen(),
-         '/recherche': (context) => const RechercheScreen(), // Route Recherche (si accessible sans auth)
-         '/login': (context) => const AuthScreen(), // La route pour l'écran de login si on y navigue manuellement
-      },
-      */
     );
   }
 }

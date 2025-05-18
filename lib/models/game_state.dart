@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
-import 'dart:async'; // Importe pour utiliser Timer
+import 'dart:async';
 
 // Importe les modèles de données
 import 'agent_pathogene.dart';
@@ -17,49 +17,67 @@ import 'base_virale.dart';
 import 'memoire_immunitaire.dart';
 import 'ressources_defensives.dart';
 import 'laboratoire_recherche.dart';
-// Assurez-vous que ce fichier existe si vous utilisez DefaultAgentPathogene
-// import '../default_agent_pathogene.dart';
 
 
 // Importe les classes de logique de combat
-import 'combat_manager.dart';
-import 'combat_result.dart';
+import 'combat_manager.dart'; // Importe CombatManager et SimulationResult
+import 'combat_result.dart'; // Importe CombatResult
+
+// --- NOUVEAU : Ajoute cette ligne ---
+part 'game_state.g.dart';
 
 
 /// GameState centralisé pour gérer l’état global de l’application.
 /// Gère l'état du joueur, la persistance Hive, la sauvegarde/chargement Firestore,
 /// et le système de progression (niveau immunitaire, niveaux d'unités).
+@HiveType(typeId: 99) // Assurez-vous que ce Type ID est unique
 class GameState extends ChangeNotifier {
+  @HiveField(14)
+  String playerName = "Nouveau Joueur";
+
+  @HiveField(0)
   RessourcesDefensives ressources = RessourcesDefensives(energie: 100, bioMateriaux: 100);
 
+  @HiveField(1)
   MemoireImmunitaire memoire = MemoireImmunitaire();
 
+  @HiveField(2)
   List<Anticorps> anticorps = [];
 
+  @HiveField(3)
   BaseVirale baseVirale = BaseVirale(nom: "Base Principale");
 
   late LaboratoireCreation laboratoireCreation;
 
+  @HiveField(4)
   String battleData = "En attente de combat...";
 
-  CombatResult? lastCombatResult;
+  CombatResult? lastCombatResult; // lastCombatResult n'a pas besoin d'être persisté si l'historique est stocké
 
+  @HiveField(5)
   Map<String, Set<String>> usedAgentSubtypes = {
     "Bacterie": {},
     "Champignon": {},
     "Virus": {},
   };
 
+  @HiveField(7)
   int immuneSystemLevel = 1;
 
-  // --- NOUVEAU : Propriétés pour l'amélioration du Système Immunitaire avec timer ---
-  @HiveField(10) // Assurez-vous que ce numéro de champ est unique
+  // --- Propriétés pour l'amélioration du Système Immunitaire avec timer ---
+  @HiveField(10)
   bool isImmuneSystemUpgrading = false;
-  @HiveField(11) // Assurez-vous que ce numéro de champ est unique
-  DateTime? immuneSystemUpgradeEndTime; // Moment où l'amélioration sera terminée
-  Timer? _immuneSystemUpgradeTimer; // Timer local (non persistant)
+  @HiveField(11)
+  DateTime? immuneSystemUpgradeEndTime;
+  Timer? _immuneSystemUpgradeTimer;
 
-  // Getter pour calculer le temps restant
+  // --- Listes pour l'historique des combats ---
+  @HiveField(12)
+  List<CombatResult> attackHistory = []; // Historique des combats initiés par le joueur
+  @HiveField(13)
+  List<CombatResult> defenseHistory = []; // Historique des combats subis par le joueur (à implémenter)
+
+
   Duration get immuneSystemUpgradeTimeLeft {
     if (!isImmuneSystemUpgrading || immuneSystemUpgradeEndTime == null) {
       return Duration.zero;
@@ -76,11 +94,17 @@ class GameState extends ChangeNotifier {
   GameState() {
     laboratoireCreation = LaboratoireCreation(ressources, this);
     loadState();
-    // Le timer doit être redémarré après le chargement si une amélioration était en cours.
     _resumeImmuneSystemUpgradeTimer();
   }
 
-  /// Redémarre le timer de l'amélioration du système immunitaire si elle était en cours.
+  void setPlayerName(String name) {
+    if (playerName != name) {
+      playerName = name;
+      notifyListeners();
+    }
+  }
+
+
   void _resumeImmuneSystemUpgradeTimer() {
     if (isImmuneSystemUpgrading && immuneSystemUpgradeEndTime != null) {
       final timeLeft = immuneSystemUpgradeEndTime!.difference(DateTime.now());
@@ -88,39 +112,30 @@ class GameState extends ChangeNotifier {
         print("Reprise du timer d'amélioration du Système Immunitaire. Temps restant: $timeLeft");
         _startImmuneSystemTimer(timeLeft);
       } else {
-        // L'amélioration est déjà terminée, finaliser immédiatement.
         _finalizeImmuneSystemUpgrade();
       }
     }
   }
 
-  /// Démarre le timer pour l'amélioration du système immunitaire.
   void _startImmuneSystemTimer(Duration duration) {
-    _immuneSystemUpgradeTimer?.cancel(); // Annule tout timer précédent
+    _immuneSystemUpgradeTimer?.cancel();
     _immuneSystemUpgradeTimer = Timer(duration, () {
       _finalizeImmuneSystemUpgrade();
     });
-    notifyListeners(); // Notifie l'UI que le timer a démarré
+    notifyListeners();
   }
 
-  /// Finalise l'amélioration du système immunitaire une fois le timer terminé.
   void _finalizeImmuneSystemUpgrade() {
     isImmuneSystemUpgrading = false;
     immuneSystemUpgradeEndTime = null;
-    immuneSystemLevel++; // Monte le niveau du système immunitaire
-    print("Amélioration du Système Immunitaire terminée. Nouveau niveau: $immuneSystemLevel"); // Log
+    immuneSystemLevel++;
+    print("Amélioration du Système Immunitaire terminée. Nouveau niveau: $immuneSystemLevel");
 
-    // TODO: Déclencher des effets de montée de niveau ici si nécessaire (ex: débloquer de nouvelles recherches).
-
-    saveState(); // Sauvegarde après la finalisation
-    notifyListeners(); // Notifie l'UI que le niveau a changé et l'amélioration est terminée
+    saveState();
+    notifyListeners();
   }
 
 
-  /// Initialise les unités de base si elles n'existent pas déjà au chargement.
-  /// Cette méthode devrait idéalement être appelée APRES loadState
-  /// pour ne pas écraser des unités sauvegardées.
-  /// Assigne un ID et initialise le niveau pour les unités de base.
   void _initBaseUnits() {
     if (anticorps.isEmpty || !anticorps.any((a) => a.nom == "GLOB-B")) {
       print("Ajout de l'anticorps de base GLOB-B.");
@@ -139,12 +154,9 @@ class GameState extends ChangeNotifier {
       anticorps.add(basicAnti);
       saveState();
     }
-    // TODO: Ajouter d'autres unités de base ou logique d'initialisation si nécessaire, avec génération d'ID et initialisation du niveau.
   }
 
 
-  /// Ajoute un nouvel agent pathogène à la base virale du joueur et notifie les écouteurs.
-  /// Génère un ID pour l'agent, initialise son niveau et sauvegarde la base sur Firestore.
   void addAgentToBase(AgentPathogene agent) {
     agent.id = _uuid.v4();
     agent.level = 1;
@@ -157,8 +169,6 @@ class GameState extends ChangeNotifier {
     saveState();
   }
 
-  /// Ajoute une nouvelle unité d'anticorps à la liste du joueur et notifie les écouteurs.
-  /// Génère un ID pour l'anticorps et initialise son niveau.
   void addAnticorps(Anticorps newAnti) {
     newAnti.id = _uuid.v4();
     newAnti.level = 1;
@@ -170,9 +180,6 @@ class GameState extends ChangeNotifier {
     saveState();
   }
 
-  /// Marque un sous-type spécifique d'agent pathogène comme ayant été créé.
-  /// Appeler après la création réussie d'un agent.
-  /// Notifie les écouteurs car cela affecte la liste des sous-types disponibles dans l'UI.
   void markAgentSubtypeAsUsed(String agentType, String subtype) {
     if (usedAgentSubtypes.containsKey(agentType)) {
       usedAgentSubtypes[agentType]!.add(subtype);
@@ -184,89 +191,67 @@ class GameState extends ChangeNotifier {
     }
   }
 
-  // --- Méthode pour démarrer l'amélioration du système immunitaire ---
-  /// Démarre le processus de montée de niveau du système immunitaire avec un timer.
   void startImmuneSystemUpgrade() {
-    // Vérification des coûts et des conditions déjà faites dans RechercheScreen,
-    // mais on peut les refaire ici pour plus de sécurité.
     int costBio = immuneSystemLevel * 30;
     int costEnergie = immuneSystemLevel * 20;
 
     if (isImmuneSystemUpgrading || ressources.bioMateriaux < costBio || ressources.energie < costEnergie) {
       print("Impossible de démarrer l'amélioration du Système Immunitaire.");
-      return; // Conditions non remplies
+      return;
     }
 
     ressources.consommerBioMateriaux(costBio);
     ressources.consommerEnergie(costEnergie);
 
     isImmuneSystemUpgrading = true;
-    final upgradeDuration = Duration(seconds: 10 * immuneSystemLevel); // 10s par niveau à atteindre
+    final upgradeDuration = Duration(seconds: 10 * immuneSystemLevel);
     immuneSystemUpgradeEndTime = DateTime.now().add(upgradeDuration);
-    print("Démarrage de l'amélioration du Système Immunitaire vers le niveau ${immuneSystemLevel + 1}. Durée: $upgradeDuration"); // Log
+    print("Démarrage de l'amélioration du Système Immunitaire vers le niveau ${immuneSystemLevel + 1}. Durée: $upgradeDuration");
 
-    _startImmuneSystemTimer(upgradeDuration); // Démarre le timer local
-    saveState(); // Sauvegarde l'état de début d'amélioration
-    notifyListeners(); // Notifie l'UI
+    _startImmuneSystemTimer(upgradeDuration);
+    saveState();
+    notifyListeners();
   }
 
-
-  // --- NOUVEAU : Méthode pour faire évoluer une unité (Agent ou Anticorps) ---
-  /// Tente de faire évoluer une unité spécifique.
-  void levelUpUnit(dynamic unit) { // unit peut être AgentPathogene ou Anticorps
-    // TODO: Définir les coûts d'évolution par niveau et par type d'unité.
+  void levelUpUnit(dynamic unit) {
     int costBio = 0;
     int costEnergie = 0;
-    int maxLevel = 10; // Exemple de niveau max
+    int maxLevel = 10;
 
     if (unit is AgentPathogene) {
       costBio = unit.level * 10;
       costEnergie = unit.level * 8;
-      maxLevel = 15; // Exemple de niveau max différent pour les agents
+      maxLevel = 15;
     } else if (unit is Anticorps) {
       costBio = unit.level * 8;
       costEnergie = unit.level * 6;
-      maxLevel = 10; // Exemple de niveau max différent pour les anticorps
+      maxLevel = 10;
     } else {
       print("Erreur: Type d'unité non supporté pour l'évolution.");
       return;
     }
 
-    // Vérifie si le niveau max est atteint
     if (unit.level >= maxLevel) {
       print("${unit.nom} a déjà atteint le niveau maximum ($maxLevel).");
-      // TODO: Afficher un message à l'utilisateur.
       return;
     }
 
-    // Vérifie si le joueur a assez de ressources.
     if (ressources.bioMateriaux < costBio || ressources.energie < costEnergie) {
       print("Ressources insuffisantes pour faire évoluer ${unit.nom} au niveau ${unit.level + 1} (requis: $costBio Bio-Mat., $costEnergie Énergie).");
-      // TODO: Afficher un message à l'utilisateur.
       return;
     }
 
-    // Consomme les ressources
     ressources.consommerBioMateriaux(costBio);
     ressources.consommerEnergie(costEnergie);
 
-    // Incrémente le niveau de l'unité
     unit.level++;
-    print("${unit.nom} a évolué au niveau ${unit.level}."); // Log
+    print("${unit.nom} a évolué au niveau ${unit.level}.");
 
-    // Applique les bonus de stats du nouveau niveau
-    // unit.applyLevelStats(); // TODO: Appeler cette méthode une fois implémentée
-
-    saveState(); // Sauvegarde l'état après l'évolution
-    notifyListeners(); // Notifie l'UI
+    saveState();
+    notifyListeners();
   }
 
-  // TODO: Ajouter une méthode specializeAnticorps(Anticorps anti, String specializationType)
-  // Cette méthode vérifiera le niveau du système immunitaire (>= 4), les coûts,
-  // définira anti.specialization, et sauvegardera l'état.
 
-
-  /// Consomme une quantité d'énergie donnée, si suffisante.
   void consommerEnergie(int quantite) {
     if (ressources.consommerEnergie(quantite)) {
       notifyListeners();
@@ -274,7 +259,6 @@ class GameState extends ChangeNotifier {
     }
   }
 
-  /// Consomme une quantité de biomatériaux donnée, si suffisante.
   void consommerBioMateriaux(int quantite) {
     if (ressources.consommerBioMateriaux(quantite)) {
       notifyListeners();
@@ -282,20 +266,65 @@ class GameState extends ChangeNotifier {
     }
   }
 
-  /// Régénère passivement les ressources et notifie l'interface.
   void regenererRessources() {
     ressources.regenerer();
     notifyListeners();
-    // La régénération peut être fréquente, sauvegarder à chaque fois pourrait être excessif.
-    // Vous pourriez vouloir sauvegarder moins souvent pour la régénération.
-    // saveState(); // Optionnel : sauvegarder après régénération
+  }
+
+  /// Lance une simulation de combat contre une base ennemie.
+  /// Inclut les informations sur l'adversaire pour l'historique.
+  void startBattle(BaseVirale enemyBase, {required String opponentIdentifier, required String opponentType}) {
+    if (anticorps.isEmpty) {
+      battleData = "Impossible de lancer le combat : Vous n'avez pas d'anticorps !";
+      lastCombatResult = null;
+      notifyListeners();
+      return;
+    }
+
+    CombatManager combatManager = CombatManager(
+      playerAnticorps: anticorps,
+      enemyBase: enemyBase,
+    );
+
+    // Appelle simulateCombat et obtient un SimulationResult
+    SimulationResult simulationResult = combatManager.simulateCombat();
+
+    // Crée un CombatResult FINAL en utilisant le SimulationResult et les infos adversaire
+    final finalCombatResult = CombatResult(
+      playerWon: simulationResult.playerWon,
+      battleSummaryForGemini: simulationResult.battleSummaryForGemini,
+      rewards: simulationResult.rewards,
+      defeatedPathogenTypes: simulationResult.defeatedPathogenTypes,
+      opponentIdentifier: opponentIdentifier, // Utilise l'identifiant passé
+      opponentType: opponentType, // Utilise le type passé
+    );
+
+    battleData = finalCombatResult.battleSummaryForGemini; // Met à jour battleData avec le résumé final
+    lastCombatResult = finalCombatResult; // Stocke le résultat complet
+
+    // Ajoute le résultat final à l'historique des attaques
+    attackHistory.add(finalCombatResult);
+    // Limiter la taille de l'historique
+    if (attackHistory.length > 50) { // Exemple: garder les 50 derniers combats
+      attackHistory.removeAt(0);
+    }
+
+
+    // TODO: Appliquer les récompenses (ressources, points de recherche) basées sur `simulationResult.rewards`
+    // TODO: Mettre à jour la mémoire immunitaire des anticorps du joueur basée sur `simulationResult.defeatedPathogenTypes`
+    // TODO: Gérer les conséquences de la défaite si `!simulationResult.playerWon`
+
+    saveState();
+    notifyListeners();
   }
 
   /// Sauvegarde l'état actuel dans Hive.
-  /// Inclut toutes les propriétés persistantes.
+  /// Inclut toutes les propriétés persistantes, y compris le nom du joueur et l'historique.
   Future<void> saveState() async {
     try {
       var box = await Hive.openBox('gameStateBox');
+      // Sauvegarde le nom du joueur
+      await box.put('playerName', playerName);
       await box.put('ressources', ressources);
       await box.put('memoire', memoire);
       await box.put('anticorps', anticorps);
@@ -303,9 +332,11 @@ class GameState extends ChangeNotifier {
       await box.put('battleData', battleData);
       await box.put('usedAgentSubtypes', usedAgentSubtypes.map((k, v) => MapEntry(k, v.toList())));
       await box.put('immuneSystemLevel', immuneSystemLevel);
-      // --- NOUVEAU : Sauvegarde les propriétés de l'amélioration du Système Immunitaire ---
       await box.put('isImmuneSystemUpgrading', isImmuneSystemUpgrading);
       await box.put('immuneSystemUpgradeEndTime', immuneSystemUpgradeEndTime);
+      // Sauvegarde l'historique des combats
+      await box.put('attackHistory', attackHistory);
+      await box.put('defenseHistory', defenseHistory);
 
 
       print("GameState sauvegardé avec succès dans Hive.");
@@ -315,10 +346,12 @@ class GameState extends ChangeNotifier {
   }
 
   /// Charge l'état sauvegardé depuis Hive.
-  /// Charge toutes les propriétés persistantes.
+  /// Charge toutes les propriétés persistantes, y compris le nom du joueur et l'historique.
   Future<void> loadState() async {
     try {
       var box = await Hive.openBox('gameStateBox');
+
+      playerName = box.get('playerName', defaultValue: "Nouveau Joueur") as String;
 
       ressources = box.get('ressources', defaultValue: RessourcesDefensives(energie: 100, bioMateriaux: 100)) as RessourcesDefensives;
       memoire = box.get('memoire', defaultValue: MemoireImmunitaire()) as MemoireImmunitaire;
@@ -340,36 +373,34 @@ class GameState extends ChangeNotifier {
       print("usedAgentSubtypes chargé: $usedAgentSubtypes");
 
       immuneSystemLevel = box.get('immuneSystemLevel', defaultValue: 1) as int;
-      // --- NOUVEAU : Charge les propriétés de l'amélioration du Système Immunitaire ---
       isImmuneSystemUpgrading = box.get('isImmuneSystemUpgrading', defaultValue: false) as bool;
       immuneSystemUpgradeEndTime = box.get('immuneSystemUpgradeEndTime') as DateTime?;
 
+      attackHistory = List<CombatResult>.from(box.get('attackHistory', defaultValue: []));
+      defenseHistory = List<CombatResult>.from(box.get('defenseHistory', defaultValue: []));
+
 
       print("GameState chargé avec succès depuis Hive.");
+      print("Nom du joueur: $playerName");
       print("Niveau Système Immunitaire: $immuneSystemLevel");
-      print("Amélioration Système Immunitaire en cours: $isImmuneSystemUpgrading"); // Log
+      print("Amélioration Système Immunitaire en cours: $isImmuneSystemUpgrading");
+      print("Historique d'attaque chargé: ${attackHistory.length} combats.");
 
-      // --- NOUVEAU : Appliquer les stats basées sur le niveau après chargement ---
-      // Il est important d'appliquer les bonus de niveau après avoir chargé les unités
-      // car les stats de base pourraient ne pas être celles sauvegardées.
-      // Assurez-vous que applyLevelStats existe et met à jour les propriétés pv, degats, etc.
-      // dans AgentPathogene et Anticorps.
       for (var agent in baseVirale.agents) {
-        // agent.applyLevelStats(); // TODO: Implémenter/appeler cette méthode si elle n'est pas déjà fonctionnelle
+        // agent.applyLevelStats(); // TODO: Appeler cette méthode une fois implémentée
       }
       for (var anti in anticorps) {
-        // anti.applyLevelStats(); // TODO: Implémenter/appeler cette méthode si elle n'est pas déjà fonctionnelle
+        // anti.applyLevelStats(); // TODO: Appeler cette méthode une méthode si elle n'est pas déjà fonctionnelle
       }
 
-      // Redémarre le timer si nécessaire après le chargement
       _resumeImmuneSystemUpgradeTimer();
-
 
       _initBaseUnits();
 
       notifyListeners();
     } catch (e) {
       print("Erreur lors du chargement GameState: $e");
+      playerName = "Nouveau Joueur";
       ressources = RessourcesDefensives(energie: 100, bioMateriaux: 100);
       memoire = MemoireImmunitaire();
       anticorps = [];
@@ -381,38 +412,16 @@ class GameState extends ChangeNotifier {
         "Virus": {},
       };
       immuneSystemLevel = 1;
-      // Initialise les propriétés de l'amélioration du Système Immunitaire en cas d'erreur
       isImmuneSystemUpgrading = false;
       immuneSystemUpgradeEndTime = null;
+      attackHistory = [];
+      defenseHistory = [];
 
 
       print("GameState réinitialisé après erreur de chargement.");
       _initBaseUnits();
       notifyListeners();
     }
-  }
-
-  void startBattle(BaseVirale enemyBase) {
-    if (anticorps.isEmpty) {
-      battleData = "Impossible de lancer le combat : Vous n'avez pas d'anticorps !";
-      lastCombatResult = null;
-      notifyListeners();
-      return;
-    }
-
-    CombatManager combatManager = CombatManager(
-      playerAnticorps: anticorps,
-      enemyBase: enemyBase,
-    );
-
-    CombatResult result = combatManager.simulateCombat();
-
-    battleData = result.battleSummaryForGemini;
-    lastCombatResult = result;
-
-    saveState();
-
-    notifyListeners();
   }
 
   Map<String, dynamic> _agentPathogeneToMap(AgentPathogene agent) {
@@ -533,6 +542,7 @@ class GameState extends ChangeNotifier {
 
       final userData = {
         'uid': user.uid,
+        'playerName': playerName,
         'lastUpdated': FieldValue.serverTimestamp(),
         'baseVirale': baseData,
         'immuneSystemLevel': immuneSystemLevel,
@@ -541,7 +551,7 @@ class GameState extends ChangeNotifier {
 
       await userDocRef.set(userData, SetOptions(merge: true));
 
-      print("Base virale du joueur (${user.uid}) et niveau immunitaire sauvegardés sur Firestore.");
+      print("Base virale du joueur (${user.uid}), nom et niveau immunitaire sauvegardés sur Firestore.");
 
     } catch (e) {
       print("Erreur lors de la sauvegarde de la base sur Firestore: $e");
@@ -555,6 +565,7 @@ class GameState extends ChangeNotifier {
 
       if (docSnapshot.exists && docSnapshot.data() != null) {
         final data = docSnapshot.data()!;
+        final loadedPlayerName = data['playerName'] as String?;
         final baseData = data['baseVirale'] as Map<String, dynamic>?;
         final loadedImmuneSystemLevel = (data['immuneSystemLevel'] as num?)?.toInt() ?? 1;
 
@@ -567,6 +578,7 @@ class GameState extends ChangeNotifier {
         }
 
         return {
+          'playerName': loadedPlayerName,
           'baseVirale': loadedBase,
           'immuneSystemLevel': loadedImmuneSystemLevel,
         };
