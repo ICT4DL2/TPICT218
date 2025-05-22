@@ -8,7 +8,7 @@ part of 'game_state.dart';
 
 class GameStateAdapter extends TypeAdapter<GameState> {
   @override
-  final int typeId = 99;
+  final int typeId = 6;
 
   @override
   GameState read(BinaryReader reader) {
@@ -24,18 +24,18 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       ..baseVirale = fields[3] as BaseVirale
       ..battleData = fields[4] as String
       ..usedAgentSubtypes = (fields[5] as Map).map((dynamic k, dynamic v) =>
-        MapEntry(k as String, (v as List<String>).toSet()))
-      ..immuneSystemLevel = fields[7] as int
+          MapEntry(k as String, (v as List).cast<String>().toSet()))
+
+    ..immuneSystemLevel = fields[7] as int
       ..isImmuneSystemUpgrading = fields[10] as bool
       ..immuneSystemUpgradeEndTime = fields[11] as DateTime?
-      ..attackHistory = (fields[12] as List).cast<CombatResult>()
-      ..defenseHistory = (fields[13] as List).cast<CombatResult>();
+      ..attackHistory = (fields[12] as List).cast<CombatResult>();
   }
 
   @override
   void write(BinaryWriter writer, GameState obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(11)
       ..writeByte(14)
       ..write(obj.playerName)
       ..writeByte(0)
@@ -57,9 +57,7 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       ..writeByte(11)
       ..write(obj.immuneSystemUpgradeEndTime)
       ..writeByte(12)
-      ..write(obj.attackHistory)
-      ..writeByte(13)
-      ..write(obj.defenseHistory);
+      ..write(obj.attackHistory);
   }
 
   @override

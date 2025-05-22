@@ -93,26 +93,29 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
   }
 
 
-  /// Affiche une progressbar pour une ressource.
+  /// Affiche une progressbar pour une ressource avec le nouveau style.
   Widget _buildResourceProgress(String label, int value) {
-    Color color = (label == "Énergie") ? Colors.green : Colors.blue;
+    Color color = (label == "Énergie") ? Colors.greenAccent : Colors.cyanAccent; // Couleurs vives
     final double percentage = (value / 100).clamp(0.0, 1.0);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white70)), // Texte blanc pour contraste
         const SizedBox(height: 4),
         SizedBox(
           width: 100,
-          child: LinearProgressIndicator(
-            value: percentage,
-            minHeight: 6,
-            backgroundColor: Colors.grey.shade300,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
+          child: ClipRRect( // Arrondir les coins
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: percentage,
+              minHeight: 10, // Hauteur augmentée
+              backgroundColor: Colors.blueGrey[600], // Fond de barre plus sombre
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
           ),
         ),
         const SizedBox(height: 4),
-        Text("$value/100", style: const TextStyle(fontSize: 10)),
+        Text("$value/100", style: const TextStyle(fontSize: 10, color: Colors.white70)), // Texte blanc pour contraste
       ],
     );
   }
@@ -212,34 +215,34 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
 
   /// Retourne l'icône représentant un agent, en fonction de son type et sous-type.
   Widget _getAgentIcon(AgentPathogene agent) {
-    IconData icon = Icons.person;
-    Color color = Colors.grey;
+    IconData icon = Icons.bug_report; // Icône par défaut pour agent
+    Color color = Colors.deepOrangeAccent; // Couleur par défaut pour agent
 
-    String? agentKey = agent.customType ?? (agent is Bacterie ? "Bacterie" : agent is Champignon ? "Champignon" : agent is Virus ? "Virus" : null);
-    String? subKey = agent.customType != null ? agent.customType! : null;
+    String? agentKey = agent.runtimeType.toString(); // Utilise le type d'exécution
+    String? subKey = agent.customType; // Utilise le customType pour le sous-type
 
-    if (agentKey != null && subtypeDetails.containsKey(agentKey)) {
-      if (subKey != null && subtypeDetails[agentKey]!.containsKey(subKey)) {
+    if (agentSubtypes.containsKey(agentKey)) {
+      if (subKey != null && subtypeDetails.containsKey(agentKey) && subtypeDetails[agentKey]!.containsKey(subKey)) {
         icon = subtypeDetails[agentKey]![subKey]!["icon"] ?? icon;
         color = subtypeDetails[agentKey]![subKey]!["color"] ?? color;
-      } else if (subKey == null && subtypeDetails[agentKey]!.containsKey(agentKey)) {
-        icon = subtypeDetails[agentKey]![agentKey]!["icon"] ?? icon;
-        color = subtypeDetails[agentKey]![agentKey]!["color"] ?? color;
       }
-    } else {
-      if (agent is Bacterie) { icon = Icons.biotech; color = Colors.purple; }
+    }
+    // Si customType n'est pas trouvé dans subtypeDetails, utilise l'icône/couleur par défaut du type principal
+    else {
+      if (agent is Bacterie) { icon = Icons.biotech; color = Colors.purpleAccent; } // Couleur ajustée
       else if (agent is Champignon) { icon = Icons.eco; color = Colors.brown; }
-      else if (agent is Virus) { icon = Icons.coronavirus; color = Colors.red; }
+      else if (agent is Virus) { icon = Icons.coronavirus; color = Colors.redAccent; } // Couleur ajustée
     }
 
-    return Icon(icon, size: 20, color: color);
+
+    return Icon(icon, size: 24, color: color); // Taille de l'icône augmentée
   }
 
 
   /// Retourne l'icône représentant un anticorps.
   Widget _getAntibodyIcon(Anticorps anti) {
-    // Utilise une icône générique pour l'anticorps basique.
-    return const Icon(Icons.shield, color: Colors.blueGrey, size: 20);
+    // Utilise une icône générique pour l'anticorps basique avec une couleur assortie.
+    return const Icon(Icons.verified_user, color: Colors.cyanAccent, size: 24); // Icône et couleur assorties, taille augmentée
   }
 
 
@@ -251,7 +254,7 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
     final int energie = gameState.ressources.energie;
     final int bio = gameState.ressources.bioMateriaux;
 
-    // --- AJUSTEMENT : Accéder à usedAgentSubtypes depuis le GameState. ---
+    // Accéder à usedAgentSubtypes depuis le GameState.
     // Utilise la map persistante pour déterminer les sous-types disponibles.
     List<String> availableSubtypes = agentSubtypes[selectedAgentType]!
         .where((s) => !gameState.usedAgentSubtypes[selectedAgentType]!.contains(s)) // Utilise gameState.usedAgentSubtypes
@@ -276,41 +279,76 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
 
 
     return Scaffold(
+      // --- NOUVEAU : Couleur d'arrière-plan du Scaffold ---
+      backgroundColor: Colors.blueGrey[800], // Couleur de fond sombre
       appBar: AppBar(
         title: const Text("Laboratoire & Création"),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: Colors.blueGrey[900], // Couleur plus sombre pour l'AppBar
+        elevation: 4, // Ombre
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(16), // Padding augmenté
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Ressources affichées avec progress bars.
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildResourceProgress("Énergie", energie),
-                _buildResourceProgress("Bio-Mat.", bio),
-              ],
+            // Titre de la section Ressources
+            Center(
+                child: Text(
+                  "Ressources",
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.greenAccent, // Couleur vive
+                      shadows: [
+                        Shadow(blurRadius: 8.0, color: Colors.black.withOpacity(0.5), offset: const Offset(1.0, 1.0)),
+                      ]
+                  ),
+                )
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
+
+            // Ressources affichées avec progress bars améliorées.
+            Card(
+              elevation: 8,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              color: Colors.blueGrey[100]!.withOpacity(0.9), // Fond clair et transparent
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildResourceProgress("Énergie", energie),
+                    _buildResourceProgress("Bio-Mat.", bio),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24), // Espacement augmenté
+
             // Formulaire de création d'un agent pathogène.
             Card(
-              margin: const EdgeInsets.all(4),
+              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8), // Marge ajustée
+              elevation: 8, // Ombre
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // Coins arrondis
+              color: Colors.blueGrey[100]!.withOpacity(0.9), // Fond clair et transparent
               child: Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(16), // Padding augmenté
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text("Créer un Agent Pathogène",
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
+                    Text("Créer un Agent Pathogène",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blueGrey[800])), // Style de texte
+                    const SizedBox(height: 16), // Espacement
                     // Dropdown pour sélectionner le Type principal
                     DropdownButtonFormField<String>(
                       value: selectedAgentType,
+                      dropdownColor: Colors.blueGrey[50], // Fond du dropdown
+                      style: TextStyle(color: Colors.blueGrey[800], fontSize: 14), // Style du texte
                       items: agentSubtypes.keys
                           .map((type) => DropdownMenuItem(
                         value: type,
-                        child: Text(type, style: const TextStyle(fontSize: 12)),
+                        child: Text(type),
                       ))
                           .toList(),
                       onChanged: (v) {
@@ -325,20 +363,25 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                           });
                         }
                       },
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: "Type d'agent",
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        labelStyle: TextStyle(color: Colors.blueGrey[700]), // Style du label
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), // Bordures arrondies
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8), // Padding ajusté
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.8), // Fond du champ
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12), // Espacement
                     // Liste déroulante pour le sous-type spécifique
                     DropdownButtonFormField<String?>(
                       value: selectedAgentSubtype,
+                      dropdownColor: Colors.blueGrey[50], // Fond du dropdown
+                      style: TextStyle(color: Colors.blueGrey[800], fontSize: 14), // Style du texte
                       items: availableSubtypes
                           .map((s) => DropdownMenuItem(
                         value: s,
-                        child: Text(s, style: const TextStyle(fontSize: 12)),
+                        child: Text(s),
                       ))
                           .toList(),
                       onChanged: availableSubtypes.isEmpty ? null : (v) {
@@ -348,14 +391,17 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                           });
                         }
                       },
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: "Sous-type",
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        labelStyle: TextStyle(color: Colors.blueGrey[700]), // Style du label
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), // Bordures arrondies
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8), // Padding ajusté
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.8), // Fond du champ
                       ),
-                      hint: availableSubtypes.isEmpty ? const Text("Aucun sous-type dispo") : null,
+                      hint: availableSubtypes.isEmpty ? Text("Aucun sous-type dispo", style: TextStyle(color: Colors.blueGrey[500])) : null, // Style du hint
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16), // Espacement
                     // Bouton pour déclencher la création de l'agent.
                     ElevatedButton.icon(
                       onPressed: selectedAgentSubtype == null
@@ -381,7 +427,7 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
 
                           gameState.addAgentToBase(newAgent);
 
-                          // --- AJUSTEMENT : Marquer le sous-type comme utilisé via GameState. ---
+                          // Marquer le sous-type comme utilisé via GameState.
                           gameState.markAgentSubtypeAsUsed(selectedAgentType, selectedAgentSubtype!);
 
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -398,25 +444,35 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                               .showSnackBar(SnackBar(content: Text(e.toString())));
                         }
                       },
-                      icon: const Icon(Icons.add, size: 16),
-                      label: Text("Créer Agent (${energyCostAgent} Énergie)", style: const TextStyle(fontSize: 12)),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
+                      icon: const Icon(Icons.add, size: 18), // Taille de l'icône augmentée
+                      label: Text("Créer Agent (${energyCostAgent} Énergie)", style: const TextStyle(fontSize: 14)), // Taille du texte augmentée
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepOrangeAccent, // Couleur vive pour l'action de création d'agent
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), // Padding ajusté
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)) // Coins arrondis
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16), // Espacement
+
             // Formulaire de création d'un anticorps.
             Card(
-              margin: const EdgeInsets.all(4),
+              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8), // Marge ajustée
+              elevation: 8, // Ombre
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // Coins arrondis
+              color: Colors.blueGrey[100]!.withOpacity(0.9), // Fond clair et transparent
               child: Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(16), // Padding augmenté
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text("Créer un Anticorps Basique",
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
+                    Text("Créer un Anticorps Basique",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blueGrey[800])), // Style de texte
+                    const SizedBox(height: 16), // Espacement
 
                     // Bouton pour déclencher la création de l'anticorps.
                     ElevatedButton.icon(
@@ -451,41 +507,57 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                               .showSnackBar(SnackBar(content: Text(e.toString())));
                         }
                       },
-                      icon: const Icon(Icons.add, size: 16),
-                      label: Text("Créer Anticorps Basique ($bioCostAnticorps Bio-Mat.)", style: const TextStyle(fontSize: 12)),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
+                      icon: const Icon(Icons.add, size: 18), // Taille de l'icône augmentée
+                      label: Text("Créer Anticorps Basique ($bioCostAnticorps Bio-Mat.)", style: const TextStyle(fontSize: 14)), // Taille du texte augmentée
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.cyanAccent, // Couleur vive pour l'action de création d'anticorps
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), // Padding ajusté
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)) // Coins arrondis
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 24), // Espacement augmenté
+
             // Liste des agents existants (dans la base virale du joueur) affichée en grille.
             Card(
-              margin: const EdgeInsets.all(4),
+              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8), // Marge ajustée
+              elevation: 8, // Ombre
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // Coins arrondis
+              color: Colors.blueGrey[100]!.withOpacity(0.9), // Fond clair et transparent
               child: Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(16), // Padding augmenté
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text("Mes Agents Pathogènes", style: TextStyle(fontWeight: FontWeight.bold)),
-                    const Divider(),
+                    Text("Mes Agents Pathogènes",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blueGrey[800])), // Style de texte
+                    const Divider(color: Colors.blueGrey), // Couleur de la diviseur
                     // Accéder aux agents via baseVirale.agents
                     gameState.baseVirale.agents.isEmpty
-                        ? const Text("Aucun agent créé.")
+                        ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Center(child: Text("Aucun agent créé.", style: TextStyle(color: Colors.black54))), // Style de texte
+                    )
                         : GridView.count(
                       crossAxisCount: 3,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       childAspectRatio: 1.0,
-                      mainAxisSpacing: 4.0,
-                      crossAxisSpacing: 4.0,
+                      mainAxisSpacing: 8.0, // Espacement augmenté
+                      crossAxisSpacing: 8.0, // Espacement augmenté
                       // Boucler sur gameState.baseVirale.agents
                       children: gameState.baseVirale.agents.map((agent) {
                         final displayName = agent.customType ?? agent.nom;
                         return GestureDetector(
                           onTap: () => _showAgentDetails(agent),
                           child: Card(
-                            elevation: 2.0,
+                            elevation: 4.0, // Ombre légère
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // Coins arrondis
+                            color: Colors.white.withOpacity(0.9), // Fond blanc semi-transparent
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -493,7 +565,7 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   displayName,
-                                  style: const TextStyle(fontSize: 10),
+                                  style: const TextStyle(fontSize: 10, color: Colors.black87), // Style de texte
                                   textAlign: TextAlign.center,
                                   overflow: TextOverflow.ellipsis,
                                   maxLines: 2,
@@ -508,30 +580,42 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16), // Espacement
+
             // Liste des anticorps existants affichée en grille.
             Card(
-              margin: const EdgeInsets.all(4),
+              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8), // Marge ajustée
+              elevation: 8, // Ombre
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // Coins arrondis
+              color: Colors.blueGrey[100]!.withOpacity(0.9), // Fond clair et transparent
               child: Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(16), // Padding augmenté
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text("Mes Anticorps", style: TextStyle(fontWeight: FontWeight.bold)),
-                    const Divider(),
+                    Text("Mes Anticorps",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blueGrey[800])), // Style de texte
+                    const Divider(color: Colors.blueGrey), // Couleur de la diviseur
                     gameState.anticorps.isEmpty
-                        ? const Text("Aucun anticorps créé.")
+                        ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Center(child: Text("Aucun anticorps créé.", style: TextStyle(color: Colors.black54))), // Style de texte
+                    )
                         : GridView.count(
                       crossAxisCount: 3,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       childAspectRatio: 1.0,
-                      mainAxisSpacing: 4.0,
-                      crossAxisSpacing: 4.0,
+                      mainAxisSpacing: 8.0, // Espacement augmenté
+                      crossAxisSpacing: 8.0, // Espacement augmenté
                       children: gameState.anticorps.map((anti) {
                         return GestureDetector(
                           onTap: () => _showAntibodyDetails(anti),
                           child: Card(
-                            elevation: 2.0,
+                            elevation: 4.0, // Ombre légère
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // Coins arrondis
+                            color: Colors.white.withOpacity(0.9), // Fond blanc semi-transparent
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -539,7 +623,7 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   anti.nom,
-                                  style: const TextStyle(fontSize: 10),
+                                  style: const TextStyle(fontSize: 10, color: Colors.black87), // Style de texte
                                   textAlign: TextAlign.center,
                                   overflow: TextOverflow.ellipsis,
                                   maxLines: 2,
@@ -562,7 +646,7 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
         padding: const EdgeInsets.all(8),
         child: ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
+              backgroundColor: Colors.teal, // Couleur assortie au bouton Accueil
               padding: const EdgeInsets.symmetric(vertical: 12)),
           onPressed: () {
             Navigator.pushNamed(context, '/accueil');

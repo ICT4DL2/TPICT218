@@ -20,7 +20,7 @@ class CombatResultAdapter extends TypeAdapter<CombatResult> {
       playerWon: fields[0] as bool,
       battleSummaryForGemini: fields[1] as String,
       rewards: (fields[2] as Map).cast<String, dynamic>(),
-      defeatedPathogenTypes: (fields[3] as List<String>).toSet(),
+      defeatedPathogenTypes: (fields[3] as List).cast<String>().toSet(),
       opponentIdentifier: fields[4] as String,
       opponentType: fields[5] as String,
     );

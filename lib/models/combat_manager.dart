@@ -1,5 +1,5 @@
 // lib/models/combat_manager.dart
-import 'dart:math'; // Importe pour Random si nécessaire
+import 'dart:math'; // Importe pour Random
 import 'agent_pathogene.dart'; // Importe les modèles nécessaires
 import 'anticorps.dart';
 import 'base_virale.dart';
@@ -40,57 +40,75 @@ class CombatManager {
   /// Simule le déroulement d'un combat.
   /// Retourne un SimulationResult contenant les données brutes du combat.
   SimulationResult simulateCombat() { // La méthode retourne SimulationResult
-    // Copie des listes pour ne pas modifier les originaux pendant le combat
-    List<Anticorps> playerUnits = List.from(playerAnticorps);
-    List<AgentPathogene> enemyUnits = List.from(enemyBase.agents);
+    // TODO: Implémenter la logique de combat détaillée ici si ce n'est pas un combat PNJ simple.
+    // Pour l'instant, nous implémentons la logique PNJ basée sur les nombres demandée.
 
-    // TODO: Implémenter la logique de combat détaillée ici.
-    // - Déterminer l'ordre des tours (initiative).
-    // - Chaque unité attaque à son tour.
-    // - Calculer les dégâts en tenant compte de l'armure, de la spécialisation, de la mémoire immunitaire, etc.
-    // - Gérer les PV des unités.
-    // - Déterminer quand un camp est vaincu.
-    // - Collecter les pathogènes vaincus pour la mémoire immunitaire.
-    // - Calculer les récompenses.
+    // --- Logique de simulation PNJ basée sur les nombres ---
+    final random = Random();
+    int playerNumber = random.nextInt(5) + 1; // Génère un nombre entre 1 et 5
 
-    String summary = "Début du combat...\n";
-    // Exemple de simulation très simplifiée pour éviter les erreurs de compilation
-    if (playerUnits.isNotEmpty && enemyUnits.isNotEmpty) {
-      // Simulation basique : chaque anticorps attaque chaque agent une fois
-      for (var anti in playerUnits) {
-        for (var agent in enemyUnits) {
-          summary += "${anti.nom} (Niv ${anti.level}) attaque ${agent.nom} (Niv ${agent.level}).\n";
-          // TODO: Appliquer les dégâts réels en tenant compte des stats, niveaux, spécialisations, mémoire, mutation.
-          // Pour l'instant, juste un log.
-        }
-      }
-      // Simulation basique : chaque agent attaque chaque anticorps une fois
-      for (var agent in enemyUnits) {
-        for (var anti in playerUnits) {
-          summary += "${agent.nom} (Niv ${agent.level}) attaque ${anti.nom} (Niv ${anti.level}).\n";
-          // TODO: Appliquer les dégâts réels.
-        }
-      }
-      summary += "Combat terminé (simulation basique).\n";
+    int machineNumber;
+    bool playerWon;
+    String summary;
+    Map<String, dynamic> rewards = {}; // Récompenses initiales vides
+    Set<String> defeatedTypes = {}; // Types vaincus initiaux vides
+
+    // Applique la règle spéciale si le joueur obtient 5
+    if (playerNumber == 5) {
+      machineNumber = 6; // La machine obtient la plus petite valeur possible
+      playerWon = true; // Le joueur gagne
+      summary = "Simulation PNJ: Votre nombre est $playerNumber, celui de la Machine est $machineNumber.\n";
+      summary += "Victoire décisive ! Votre attaque et votre défense ont été couronnées de succès.\n";
+      // TODO: Définir des récompenses généreuses pour une victoire décisive
+      rewards = {'energie': 100, 'bioMateriaux': 80};
+      // TODO: Déterminer les types vaincus (peut-être tous les types présents dans la base ennemie ?)
+      defeatedTypes = enemyBase.agents.map((agent) => agent.runtimeType.toString()).toSet();
+
+
     } else {
-      summary += "Pas d'unités pour combattre.\n";
+      // Cas général pour les nombres joueur 1 à 4
+      machineNumber = random.nextInt(5) + 6; // Génère un nombre entre 6 et 10
+      summary = "Simulation PNJ: Votre nombre est $playerNumber, celui de la Machine est $machineNumber.\n";
+
+      // Détermine la victoire/défaite basée sur la comparaison (logique ajustée)
+      // Plus playerNumber est grand, plus la chance de gagner est élevée.
+      // Plus machineNumber est petit, plus la chance de gagner est élevée.
+      // Utilisons une comparaison simple qui favorise le joueur avec un nombre plus élevé.
+      // Par exemple, le joueur gagne si son nombre multiplié par un facteur est supérieur ou égal au nombre de la machine.
+      // Le facteur 2 semble raisonnable pour donner une chance aux nombres 3 et 4.
+      playerWon = (playerNumber * 2) >= machineNumber;
+
+
+      if (playerWon) {
+        summary += "Victoire ! Votre stratégie a porté ses fruits.\n";
+        // TODO: Définir des récompenses modérées pour une victoire normale
+        rewards = {'energie': 50, 'bioMateriaux': 30};
+        // TODO: Déterminer les types vaincus (peut-être un sous-ensemble basé sur playerNumber ?)
+        defeatedTypes = {'Bacterie'}; // Exemple simple
+        if (playerNumber >= 4) defeatedTypes.add('Virus');
+        if (playerNumber >= 5) defeatedTypes.add('Champignon'); // Déjà géré par le cas spécial, mais pour l'exemple
+
+      } else {
+        summary += "Défaite. La défense de la Machine était trop forte.\n";
+        // TODO: Définir des récompenses minimales ou nulles pour une défaite
+        rewards = {}; // Pas de récompenses en cas de défaite
+        defeatedTypes = {}; // Pas de types vaincus en cas de défaite
+      }
+      summary += "Résultat final: ${playerWon ? 'Victoire' : 'Défaite'}.\n";
     }
 
 
-    // TODO: Déterminer le résultat réel du combat (victoire/défaite).
-    // Pour l'instant, on suppose une victoire du joueur pour les tests.
-    bool playerWon = playerUnits.isNotEmpty && enemyUnits.isEmpty; // Logique simplifiée
+    // TODO: Affiner le calcul des récompenses et des types vaincus
+    // en fonction de la différence entre les nombres, des unités présentes, etc.
 
-    // TODO: Calculer les récompenses et les types de pathogènes vaincus.
-    Map<String, dynamic> rewards = {}; // Exemple vide
-    Set<String> defeatedPathogenTypes = {}; // Exemple vide
+    print("Simulation PNJ terminée. Joueur a gagné: $playerWon (Joueur:$playerNumber, Machine:$machineNumber)"); // Log
 
-    // --- Retourne un SimulationResult ---
+    // Retourne le résultat brut de la simulation
     return SimulationResult(
       playerWon: playerWon,
       battleSummaryForGemini: summary,
       rewards: rewards,
-      defeatedPathogenTypes: defeatedPathogenTypes,
+      defeatedPathogenTypes: defeatedTypes,
     );
   }
 }

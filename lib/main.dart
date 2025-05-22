@@ -16,7 +16,6 @@ import 'journal_screen.dart';
 
 import 'recherche_screen.dart';
 
-import 'models/agent_pathogene.dart';
 import 'models/bacterie.dart';
 import 'models/champignon.dart';
 import 'models/virus.dart';
@@ -25,7 +24,6 @@ import 'models/base_virale.dart';
 import 'models/memoire_immunitaire.dart';
 import 'models/ressources_defensives.dart';
 import 'models/game_state.dart';
-import 'models/laboratoire_recherche.dart';
 import 'models/combat_result.dart';
 
 
@@ -119,21 +117,28 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         builder: (ctx, userSnapshot) {
           if (userSnapshot.connectionState == ConnectionState.waiting) {
             print("Authentification state: WAITING. Affichage splash screen.");
-            return const Scaffold(
-              backgroundColor: Colors.deepPurple,
-              body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                    SizedBox(height: 20),
-                    Text(
-                      "Chargement...",
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                  ],
+            return Scaffold(
+              body: Container( // Utilisation d'un Container pour l'image de fond
+                decoration: const BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage('assets/images/fond.png'),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                child: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                      SizedBox(height: 20),
+                      Text(
+                        "Chargement...",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
