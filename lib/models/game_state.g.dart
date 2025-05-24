@@ -17,7 +17,8 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return GameState()
-      ..playerName = fields[14] as String
+      .._playerName = fields[14] as String
+      ..playerUid = fields[22] as String?
       ..ressources = fields[0] as RessourcesDefensives
       ..memoire = fields[1] as MemoireImmunitaire
       ..anticorps = (fields[2] as List).cast<Anticorps>()
@@ -25,8 +26,7 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       ..battleData = fields[4] as String
       ..usedAgentSubtypes = (fields[5] as Map).map((dynamic k, dynamic v) =>
           MapEntry(k as String, (v as List).cast<String>().toSet()))
-
-    ..immuneSystemLevel = fields[7] as int
+      ..immuneSystemLevel = fields[7] as int
       ..isImmuneSystemUpgrading = fields[10] as bool
       ..immuneSystemUpgradeEndTime = fields[11] as DateTime?
       ..attackHistory = (fields[12] as List).cast<CombatResult>();
@@ -35,9 +35,11 @@ class GameStateAdapter extends TypeAdapter<GameState> {
   @override
   void write(BinaryWriter writer, GameState obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(14)
-      ..write(obj.playerName)
+      ..write(obj._playerName)
+      ..writeByte(22)
+      ..write(obj.playerUid)
       ..writeByte(0)
       ..write(obj.ressources)
       ..writeByte(1)

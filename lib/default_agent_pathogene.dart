@@ -8,24 +8,20 @@ class DefaultAgentPathogene extends AgentPathogene {
   @HiveField(11)
   final String agentType; // "A", "B", "O", "AB", ou type personnalisé.
 
+  @override
   @HiveField(12)
   int level; // Niveau d'évolution de l'agent (pertinent pour A et pour son évolution vers AB).
 
   DefaultAgentPathogene({
-    required String nom, // Nom personnalisé de l'antigène
+    required super.nom, // Nom personnalisé de l'antigène
     required this.agentType,
     this.level = 1,
-    required int pv,
-    required double armure,
-    required int degats,
-    required int initiative,
+    required super.pv,
+    required super.armure,
+    required super.degats,
+    required super.initiative,
   }) : super(
-    nom: nom,
-    pv: pv,
-    armure: armure,
     typeAttaque: agentType,
-    degats: degats,
-    initiative: initiative,
   );
 
   /// Bonus offensif de A contre B, proportionnel au niveau.

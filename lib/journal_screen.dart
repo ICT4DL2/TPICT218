@@ -2,14 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'models/game_state.dart'; // Importe GameState pour accéder aux logs de combat et niveaux
-import 'models/combat_result.dart'; // Importe CombatResult pour afficher les détails
-import 'dart:math';
+// Importe CombatResult pour afficher les détails
 
 
 /// Écran du Journal/Carnet.
 /// Contient des sections pour le journal d'attaque et les niveaux débloqués.
 class JournalScreen extends ConsumerWidget {
-  const JournalScreen({Key? key}) : super(key: key);
+  const JournalScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -107,7 +106,7 @@ class JournalScreen extends ConsumerWidget {
                       title: Text(agent.nom),
                       trailing: Text("Niveau ${agent.level}"),
                     ),
-                  )).toList(),
+                  )),
                   const SizedBox(height: 16),
 
                   // Affiche les anticorps du joueur
@@ -120,7 +119,7 @@ class JournalScreen extends ConsumerWidget {
                       subtitle: Text("Spécialisation: ${anti.specialization ?? 'Aucune'}"),
                       trailing: Text("Niveau ${anti.level}"),
                     ),
-                  )).toList(),
+                  )),
                 ],
               ),
             ),

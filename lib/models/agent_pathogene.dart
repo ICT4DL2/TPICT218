@@ -54,7 +54,7 @@ abstract class AgentPathogene {
     this.customType,
     // L'ID et le niveau ne sont PAS passés dans le constructeur ici.
     // Ils seront assignés par le GameState lors de la création.
-  }) : this.typeAttaque = typeAttaque; // Assigne la valeur du paramètre à la propriété
+  }) : typeAttaque = typeAttaque; // Assigne la valeur du paramètre à la propriété
 
 
   /// Retourne la valeur de dégâts obtenue lors de l'attaque spéciale.
@@ -65,12 +65,6 @@ abstract class AgentPathogene {
   /// Applique les bonus de statistiques basés sur le niveau de l'agent.
   /// Cette méthode sera appelée par le CombatManager ou lors du chargement/montée de niveau.
   void applyLevelStats() {
-    // TODO: Implémenter la logique pour augmenter pv, armure, degats, initiative
-    // en fonction du 'level'. Par exemple :
-    // pv = basePv + (level - 1) * bonusPvParNiveau;
-    // degats = baseDegats + (level - 1) * bonusDegatsParNiveau;
-    // Vous aurez besoin de stocker les stats de base quelque part si elles ne sont pas fixes.
-    // Pour l'instant, c'est une méthode placeholder.
     print("$nom (Niv $level) applique ses stats.");
     // Les calculs de stats réels devront être faits ici ou dans le CombatManager.
   }

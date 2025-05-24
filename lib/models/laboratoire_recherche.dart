@@ -76,7 +76,7 @@ class LaboratoireCreation {
         throw Exception("Type d'agent pathogène inconnu.");
     }
     // Assigner le customType après la création si le constructeur ne l'accepte pas directement
-    if (customType != null && newAgent is AgentPathogene) { // Vérification de type pour être sûr
+    if (customType != null) { // Vérification de type pour être sûr
       newAgent.customType = customType;
     }
 
@@ -122,7 +122,7 @@ class LaboratoireCreation {
     int? tempsProduction,
   }) {
     // --- NOUVEAU : Vérifie la limite de création d'anticorps si niveau < 4 ---
-    if (gameState.immuneSystemLevel < 4 && gameState.anticorps.length >= 1) {
+    if (gameState.immuneSystemLevel < 4 && gameState.anticorps.isNotEmpty) {
       throw Exception("Limite de création d'anticorps atteinte pour le niveau ${gameState.immuneSystemLevel} du Système Immunitaire (max 1).");
     }
 

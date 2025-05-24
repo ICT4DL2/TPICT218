@@ -50,7 +50,7 @@ class Anticorps {
     required this.tempsProduction,
     // L'ID, le niveau, la spécialisation et la mémoire ne sont PAS passés dans le constructeur ici.
     // Ils seront assignés par le GameState lors de la création ou de la progression.
-  }) : this.typeAttaque = typeAttaque; // Assigne la valeur du paramètre à la propriété
+  }) : typeAttaque = typeAttaque; // Assigne la valeur du paramètre à la propriété
 
 
   /// Méthode de l'attaque spéciale de l'anticorps.

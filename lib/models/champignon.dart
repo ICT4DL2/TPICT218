@@ -10,20 +10,16 @@ class Champignon extends AgentPathogene {
   bool invisible = false;
 
   Champignon({
-    required int pv,
-    required double armure,
-    required int degats,
-    required int initiative,
+    required super.pv,
+    required super.armure,
+    required super.degats,
+    required super.initiative,
     // L'ID, le niveau et la mutation sont dans AgentPathogene et assignés par GameState.
     // bool? invisible, // Le champ invisible peut être passé si nécessaire
     // String? customType, // Le customType peut être passé si nécessaire
   }) : super(
     nom: "Champignon",
-    pv: pv,
-    armure: armure,
-    typeAttaque: "toxique", // Défini ici pour Champignon
-    degats: degats,
-    initiative: initiative,
+    typeAttaque: "toxique",
     // customType: customType, // Passe le customType au parent si nécessaire
   )
   // : this.invisible = invisible ?? false; // Assigne la valeur du paramètre si passé

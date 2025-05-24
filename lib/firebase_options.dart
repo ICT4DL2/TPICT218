@@ -54,9 +54,10 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyAFTgQMXoa2_ucYx_Fvw9f4yYIXzbch0nM',
-    appId: '1:179578950096:android:32da6b87e49b06a439a9d5',
+    appId: '1:179578950096:android:77508456b211eef339a9d5',
     messagingSenderId: '179578950096',
     projectId: 'immunowariors',
     storageBucket: 'immunowariors.firebasestorage.app',
   );
+
 }

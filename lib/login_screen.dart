@@ -4,13 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/game_state.dart';
-import '../models/base_virale.dart'; // Assurez-vous d'importer BaseVirale
-import '../models/anticorps.dart'; // Assurez-vous d'importer Anticorps
-import '../models/ressources_defensives.dart'; // Assurez-vous d'importer RessourcesDefensives
+import 'models/game_state.dart';
+import 'models/base_virale.dart'; // Assurez-vous d'importer BaseVirale
+import 'models/anticorps.dart'; // Assurez-vous d'importer Anticorps
+import 'models/ressources_defensives.dart'; // Assurez-vous d'importer RessourcesDefensives
 
 class AuthScreen extends ConsumerStatefulWidget {
-  const AuthScreen({Key? key}) : super(key: key);
+  const AuthScreen({super.key});
 
   @override
   _AuthScreenState createState() => _AuthScreenState();
@@ -48,7 +48,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     try {
       final FirebaseAuth auth = FirebaseAuth.instance;
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
-      String? effectivePlayerName; // Le nom du joueur qui sera utilisé
+      String? effectivePlayerName;
+      String? playerUid; // Pour stocker l'UID de l'utilisateur
+
+      final gameState = ref.read(gameStateProvider); // Accédez au GameState une seule fois
 
       if (_isLogin) {
         // --- Mode Connexion ---
@@ -58,73 +61,67 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         );
 
         if (userCredential.user != null) {
-          print("Connexion réussie pour UID: ${userCredential.user!.uid}");
+          playerUid = userCredential.user!.uid;
+          print("Connexion réussie pour UID: $playerUid");
+
+          // Définir l'UID du joueur dans le GameState dès la connexion
+          gameState.setPlayerUid(playerUid!);
 
           // Tente de charger les données publiques du joueur depuis Firestore
-          // Cette méthode doit maintenant retourner les données complètes pour la base, anticorps, etc.
-          final gameState = ref.read(gameStateProvider);
-          final Map<String, dynamic>? loadedData = await gameState.loadPlayerPublicDataFromFirestore(userCredential.user!.uid);
+          final Map<String, dynamic>? loadedData = await gameState.loadPlayerPublicDataFromFirestore(playerUid!);
 
           if (loadedData != null) {
             effectivePlayerName = loadedData['playerName'] as String?;
             print("Login: Données joueur chargées depuis Firestore: $effectivePlayerName");
 
             // Met à jour le GameState avec les données chargées
-            // Le GameState.loadState() s'occupe déjà de charger depuis Hive
-            // Ici, nous voulons spécifiquement charger les données publiques de Firestore
-            // qui pourraient être plus récentes ou servir de référence.
-            // Il est important de coordonner cela avec la logique de loadState() et saveState()
-            // de GameState. Pour éviter les conflits, nous allons charger les données
-            // nécessaires et les appliquer manuellement ou appeler une méthode spécifique
-            // dans GameState si elle est conçue pour cela.
+            // NOTE: La logique de `loadPlayerPublicDataFromFirestore` devrait déjà
+            // hydrater le GameState avec ces données. Si ce n'est pas le cas,
+            // alors les lignes ci-dessous sont nécessaires.
+            // Cependant, idéalement, `loadPlayerPublicDataFromFirestore`
+            // devrait aussi gérer la mise à jour des propriétés du GameState.
 
-            // Si vous avez des constructeurs ou des setters pour ces propriétés
-            // dans GameState, c'est le moment de les utiliser.
-            // Pour l'exemple, nous allons directement mettre à jour les propriétés
-            // et appeler notifyListeners() si nécessaire.
-
-            // Mettre à jour le nom du joueur
             if (effectivePlayerName != null && effectivePlayerName.isNotEmpty) {
               gameState.setPlayerName(effectivePlayerName);
             }
-
-            // Mettre à jour la base virale
-            if (loadedData['baseVirale'] is BaseVirale) {
+            // Mettre à jour les autres propriétés du GameState si `loadPlayerPublicDataFromFirestore` ne le fait pas
+            // Par exemple:
+            if (loadedData.containsKey('baseVirale')) {
+              // Assurez-vous que BaseVirale est bien désérialisée ici si elle ne l'est pas déjà par Hive
+              // C'est un point où vous pourriez avoir besoin d'une méthode `fromMap` dans BaseVirale
+              // ou un adaptateur Hive qui gère la conversion depuis Firestore
+              // Pour l'instant, je laisse le casting direct si votre `loadPlayerPublicDataFromFirestore`
+              // retourne des objets déjà typés.
               gameState.baseVirale = loadedData['baseVirale'] as BaseVirale;
             }
-
-            // Mettre à jour les anticorps
-            if (loadedData['playerAnticorps'] is List<Anticorps>) {
+            if (loadedData.containsKey('playerAnticorps')) {
               gameState.anticorps = loadedData['playerAnticorps'] as List<Anticorps>;
             }
-
-            // Mettre à jour les ressources
-            if (loadedData['playerRessources'] is RessourcesDefensives) {
+            if (loadedData.containsKey('playerRessources')) {
               gameState.ressources = loadedData['playerRessources'] as RessourcesDefensives;
             }
-
-            // Mettre à jour le niveau du système immunitaire
-            if (loadedData['immuneSystemLevel'] is int) {
+            if (loadedData.containsKey('immuneSystemLevel')) {
               gameState.immuneSystemLevel = loadedData['immuneSystemLevel'] as int;
             }
-            // Notifier les écouteurs après avoir mis à jour les données du GameState
-            gameState.notifyListeners();
+            gameState.notifyListeners(); // Notifier les écouteurs après avoir mis à jour les données
             print("AuthScreen: GameState mis à jour avec les données de Firestore.");
 
           } else {
-            print("Login: Aucune donnée publique trouvée dans Firestore pour UID: ${userCredential.user!.uid}. "
+            print("Login: Aucune donnée publique trouvée dans Firestore pour UID: $playerUid. "
                 "Un nouveau document de base sera créé ou le GameState existant sera utilisé.");
-            // Si aucune donnée n'est trouvée, cela signifie peut-être que l'utilisateur n'a pas encore
-            // de données publiques. On peut alors se fier à la logique d'initialisation de GameState.
-            // Ou créer un document de base si c'est la première connexion.
-            // Pour l'instant, on se base sur le nom par défaut ou celui de GameState.
+            // Si l'utilisateur s'est connecté mais n'a pas de données Firestore,
+            // cela pourrait signifier qu'il est un ancien utilisateur ou qu'il s'est inscrit
+            // via une autre méthode et que ses données Firestore n'ont pas été initialisées.
+            // Dans ce cas, on peut initialiser ses données Firestore avec l'état actuel de GameState
+            // (qui sera chargé depuis Hive s'il existe).
+            await gameState.savePlayerPublicDataToFirestore(); // Sauvegarde l'état actuel du GameState vers Firestore
           }
         }
         print("Connexion terminée.");
 
       } else {
         // --- Mode Inscription ---
-        effectivePlayerName = _nameController.text.trim(); // Capture le nom saisi
+        effectivePlayerName = _nameController.text.trim();
         print("Inscription: Nom saisi: $effectivePlayerName");
 
         UserCredential userCredential = await auth.createUserWithEmailAndPassword(
@@ -133,40 +130,38 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         );
 
         if (userCredential.user != null) {
-          print("Inscription Firebase réussie pour UID: ${userCredential.user!.uid}");
+          playerUid = userCredential.user!.uid;
+          print("Inscription Firebase réussie pour UID: $playerUid");
 
-          // Initialise GameState pour le nouvel utilisateur avec le nom saisi
-          final gameState = ref.read(gameStateProvider);
-          if (effectivePlayerName != null && effectivePlayerName.isNotEmpty) {
+          // Définir l'UID et le nom du joueur dans le GameState dès l'inscription
+          gameState.setPlayerUid(playerUid!);
+          if (effectivePlayerName.isNotEmpty) {
             gameState.setPlayerName(effectivePlayerName);
             print("AuthScreen: Nom du joueur '$effectivePlayerName' défini dans GameState lors de l'inscription.");
           } else {
-            gameState.setPlayerName("Nouveau Joueur"); // Nom par défaut si non saisi
+            gameState.setPlayerName("Nouveau Joueur"); // Nom par défaut
             print("AuthScreen: Nom du joueur défini par défaut dans GameState lors de l'inscription.");
           }
+
+          // Initialisation des données par défaut du GameState pour un nouvel utilisateur
+          // (Si votre GameState n'a pas déjà des valeurs par défaut dans son constructeur)
+          // Par exemple, en appelant une méthode d'initialisation explicite si vous en avez une:
+          // await gameState.initializeNewPlayerDefaults();
 
           // Puis sauvegarde toutes les données publiques initiales dans Firestore
           // Ceci inclura la base virale, anticorps par défaut, etc. qui sont dans gameState
           await gameState.savePlayerPublicDataToFirestore();
-          print("Inscription: Données publiques initiales créées dans Firestore pour ${userCredential.user!.uid}");
-
+          print("Inscription: Données publiques initiales créées dans Firestore pour $playerUid");
         }
         print("Inscription terminée.");
       }
 
-      // --- Synchronisation finale du nom dans GameState et sauvegarde locale ---
-      // Cette partie est cruciale pour s'assurer que le nom est bien défini localement.
-      final gameState = ref.read(gameStateProvider);
-      if (effectivePlayerName != null && effectivePlayerName.isNotEmpty) {
-        gameState.setPlayerName(effectivePlayerName);
-        print("AuthScreen: Nom du joueur '${effectivePlayerName}' finalisé et défini dans GameState.");
-      } else {
-        // Ce cas ne devrait normalement pas arriver si le flux est géré correctement,
-        // mais c'est une sécurité.
-        print("AuthScreen: Aucun nom effectif, le nom par défaut de GameState sera utilisé.");
-        // Le nom par défaut est déjà géré par loadState de GameState.
+      // --- Synchronisation finale et sauvegarde locale ---
+      // Assurez-vous que GameState.playerUid est toujours défini ici.
+      if (playerUid != null) {
+        gameState.setPlayerUid(playerUid);
       }
-      // Sauvegarde l'état pour persister le nom du joueur localement via Hive
+      // Sauvegarde l'état pour persister le nom du joueur et l'UID localement via Hive.
       // C'est important car GameState.loadState() est appelé au démarrage
       // de GameState, et cette sauvegarde assure que les dernières données sont là.
       await gameState.saveState();

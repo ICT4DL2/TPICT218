@@ -9,11 +9,9 @@ import 'package:uuid/uuid.dart'; // Assurez-vous que uuid est bien importé
 import 'gemini/briefing_widget.dart';
 import 'models/game_state.dart';
 import 'models/bacterie.dart';
-import 'models/champignon.dart';
-import 'models/virus.dart';
 import 'models/base_virale.dart';
 import 'models/agent_pathogene.dart'; // Importe AgentPathogene
-import 'models/anticorps.dart'; // Importe Anticorps (toujours nécessaire pour la logique GameState actuelle)
+// Importe Anticorps (toujours nécessaire pour la logique GameState actuelle)
 
 
 // Peintre personnalisé pour le radar avec des améliorations visuelles
@@ -86,7 +84,7 @@ class RadarPainter extends CustomPainter {
 
 
 class CombatScreen extends ConsumerStatefulWidget {
-  const CombatScreen({Key? key}) : super(key: key);
+  const CombatScreen({super.key});
 
   @override
   _CombatScreenState createState() => _CombatScreenState();
@@ -102,7 +100,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen> with SingleTickerPr
   String _pvpStatusMessage = "Prêt pour le combat.";
 
   // Liste des agents pathogènes sélectionnés par glisser-déposer
-  List<AgentPathogene> _selectedUnits = [];
+  final List<AgentPathogene> _selectedUnits = [];
   bool _isDroppingUnits = false; // Indique si la phase de sélection d'unités est active
 
   int _countdown = 10; // Compteur pour le timer visuel
@@ -208,10 +206,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen> with SingleTickerPr
 
     final gameStateActions = ref.read(gameStateProvider);
 
-    // Appelle la logique de combat dans GameState.
-    // TODO: Modifier GameState.startBattle et CombatManager pour utiliser List<AgentPathogene> _selectedUnits
-    // et simuler les agents pathogènes attaquant la base ennemie.
-    // Pour l'instant, la simulation utilise toujours les anticorps du joueur contre la base ennemie (logique inversée).
+   
     gameStateActions.startBattle(
       _currentEnemyBase!, // Base ennemie attaquée
       opponentIdentifier: _currentOpponentIdentifier!,
@@ -368,7 +363,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen> with SingleTickerPr
                                 size: 35, // Taille légèrement augmentée
                               ),
                             ),
-                          )).toList(),
+                          )),
 
                           // Bouton Lancer l'Attaque (visible si unités sélectionnées et pas en combat)
                           if (_selectedUnits.isNotEmpty && !_combatActive)
@@ -480,19 +475,16 @@ class _CombatScreenState extends ConsumerState<CombatScreen> with SingleTickerPr
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         ElevatedButton(
-                          onPressed: _preparePNJCombat, // Prépare le combat PNJ (bouton PvP retiré)
-                          // Texte du bouton réduit
-                          child: const Text("Lancer un Raid (PNJ)", textAlign: TextAlign.center),
+                          onPressed: _preparePNJCombat,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blueGrey,
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // Padding réduit
                             textStyle: const TextStyle(fontSize: 16),
                             minimumSize: const Size(200, 40), // Taille minimale ajustée
-                          ),
+                          ), // Prépare le combat PNJ (bouton PvP retiré)
+                          // Texte du bouton réduit
+                          child: const Text("Lancer un Raid (PNJ)", textAlign: TextAlign.center),
                         ),
-                        // Retiré le bouton PvP
-                        // const SizedBox(height: 12),
-                        // ElevatedButton(...)
                       ],
                     ),
                   // Bouton Annuler (visible pendant la phase de drop)

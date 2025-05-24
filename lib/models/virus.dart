@@ -5,19 +5,15 @@ part 'virus.g.dart';
 @HiveType(typeId: 5)
 class Virus extends AgentPathogene {
   Virus({
-    required int pv,
-    required double armure,
-    required int degats,
-    required int initiative,
+    required super.pv,
+    required super.armure,
+    required super.degats,
+    required super.initiative,
     // L'ID, le niveau et la mutation ne sont PAS passés ici.
     // String? customType, // Le customType peut être passé si nécessaire
   }) : super(
     nom: "Virus",
-    pv: pv,
-    armure: armure,
-    typeAttaque: "corrosive", // Défini ici pour Virus
-    degats: degats,
-    initiative: initiative,
+    typeAttaque: "corrosive",
     // customType: customType, // Passe le customType au parent si nécessaire
   );
 

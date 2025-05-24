@@ -1,6 +1,6 @@
 // lib/models/combat_manager.dart
 import 'dart:math'; // Importe pour Random
-import 'agent_pathogene.dart'; // Importe les modèles nécessaires
+// Importe les modèles nécessaires
 import 'anticorps.dart';
 import 'base_virale.dart';
 // N'importe PAS CombatResult ici pour éviter la dépendance circulaire.

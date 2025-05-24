@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:async';
@@ -16,11 +15,12 @@ import 'anticorps.dart';
 import 'base_virale.dart';
 import 'memoire_immunitaire.dart';
 import 'ressources_defensives.dart';
-import 'laboratoire_recherche.dart';
+import 'laboratoire_recherche.dart'; // Assurez-vous d'avoir cette classe ou de la renommer si c'est LaboratoireCreation
 
 // Importe les classes de logique de combat
 import 'combat_manager.dart'; // Importe CombatManager et SimulationResult
 import 'combat_result.dart'; // Importe CombatResult
+
 part 'game_state.g.dart';
 
 /// GameState centralisé pour gérer l’état global de l’application.
@@ -29,7 +29,10 @@ part 'game_state.g.dart';
 @HiveType(typeId: 6) // Assurez-vous que ce Type ID est unique et cohérent
 class GameState extends ChangeNotifier {
   @HiveField(14)
-  String playerName = "Nouveau Joueur";
+  String _playerName = "Nouveau Joueur"; // Rendu privé pour forcer l'utilisation du setter
+
+  @HiveField(22) // NOUVEAU: Ajoutez un HiveField unique pour l'UID
+  String? playerUid; // L'UID Firebase du joueur actuel
 
   @HiveField(0)
   RessourcesDefensives ressources = RessourcesDefensives(energie: 100, bioMateriaux: 100);
@@ -48,7 +51,7 @@ class GameState extends ChangeNotifier {
   @HiveField(4)
   String battleData = "En attente de combat...";
 
-  CombatResult? lastCombatResult; // lastCombatResult n'a pas besoin d'être persisté si l'historique est stocké
+  CombatResult? lastCombatResult;
 
   @HiveField(5)
   Map<String, Set<String>> usedAgentSubtypes = {
@@ -71,7 +74,6 @@ class GameState extends ChangeNotifier {
   @HiveField(12)
   List<CombatResult> attackHistory = [];
 
-
   Duration get immuneSystemUpgradeTimeLeft {
     if (!isImmuneSystemUpgrading || immuneSystemUpgradeEndTime == null) {
       return Duration.zero;
@@ -80,24 +82,52 @@ class GameState extends ChangeNotifier {
     return timeLeft.isNegative ? Duration.zero : timeLeft;
   }
 
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Uuid _uuid = Uuid();
 
+  // Getter pour le nom du joueur
+  String get playerName => _playerName;
 
   GameState() {
     laboratoireCreation = LaboratoireCreation(ressources, this);
-    loadState(); // Charge l'état sauvegardé
+    _initializeGameState(); // Appelle une nouvelle méthode d'initialisation
     _resumeImmuneSystemUpgradeTimer();
   }
 
-  void setPlayerName(String name) {
-    if (playerName != name) {
-      playerName = name;
-      notifyListeners();
+  // Nouvelle méthode pour l'initialisation asynchrone
+  Future<void> _initializeGameState() async {
+    await loadState(); // Charge l'état local depuis Hive
+
+    // Après avoir chargé l'état local, vérifiez si nous avons un UID et synchronisez avec Firestore
+    if (playerUid != null && playerUid!.isNotEmpty) {
+      print("GameState: UID trouvé localement: $playerUid. Tentative de synchronisation Firestore.");
+      await _initializePlayerStateFromFirestore(playerUid!);
+    } else {
+      print("GameState: Pas d'UID trouvé localement. Initialisation par défaut ou attente de l'authentification.");
+      _initBaseUnits(); // Assurez-vous que les unités de base sont là même sans UID initial
     }
   }
 
+
+  // Setter pour le nom du joueur
+  void setPlayerName(String name) {
+    if (_playerName != name) {
+      _playerName = name;
+      notifyListeners();
+      // On ne sauvegarde pas immédiatement ici car saveState() est appelé par AuthScreen
+      // après l'authentification/inscription, ou dans d'autres actions
+      // qui modifient GameState. Cela évite des écritures excessives.
+    }
+  }
+
+  // NOUVEAU: Setter pour l'UID du joueur
+  void setPlayerUid(String uid) {
+    if (playerUid != uid) {
+      playerUid = uid;
+      notifyListeners();
+      // Similaire au nom, saveState sera géré par AuthScreen ou d'autres actions.
+    }
+  }
 
   void _resumeImmuneSystemUpgradeTimer() {
     if (isImmuneSystemUpgrading && immuneSystemUpgradeEndTime != null) {
@@ -125,15 +155,12 @@ class GameState extends ChangeNotifier {
     immuneSystemLevel++;
     print("Amélioration du Système Immunitaire terminée. Nouveau niveau: $immuneSystemLevel");
 
-    saveState();
+    savePlayerPublicDataToFirestore(); // Sauvegarde le niveau du système immunitaire sur Firestore
+    saveState(); // Sauvegarde locale
     notifyListeners();
   }
 
-
   void _initBaseUnits() {
-    // TODO: Revoir cette logique d'initialisation si les agents pathogènes sont les unités de base
-    // et si les anticorps sont créés différemment.
-    // Pour l'instant, garde l'ajout d'un anticorps de base si la liste est vide.
     if (anticorps.isEmpty || !anticorps.any((a) => a.nom == "GLOB-B")) {
       print("Ajout de l'anticorps de base GLOB-B.");
       Anticorps basicAnti = Anticorps(
@@ -149,11 +176,23 @@ class GameState extends ChangeNotifier {
       basicAnti.memory = {};
 
       anticorps.add(basicAnti);
-      // Ne pas sauvegarder ici, saveState est appelé après loadState.
+      // Pas de saveState ici, sera géré par l'appelant (e.g., _initializePlayerStateFromFirestore ou AuthScreen)
     }
     // TODO: Ajouter une logique pour initialiser des agents pathogènes de base si nécessaire.
+    if (baseVirale.agents.isEmpty) {
+      print("Ajout d'un agent pathogène de base (Bactérie).");
+      Bacterie basicBact = Bacterie(
+        pv: 100,
+        armure: 5,
+        degats: 15,
+        initiative: 5,
+      );
+      basicBact.id = _uuid.v4();
+      basicBact.level = 1;
+      basicBact.mutationLevel = 0;
+      baseVirale.ajouterAgent(basicBact);
+    }
   }
-
 
   /// Ajoute un nouvel agent pathogène à la base virale du joueur et notifie les écouteurs.
   /// Appelle également la sauvegarde Firestore de la base.
@@ -165,7 +204,7 @@ class GameState extends ChangeNotifier {
     baseVirale.ajouterAgent(agent);
 
     notifyListeners();
-    savePlayerPublicDataToFirestore(); // Sauvegarde sur Firestore (mise à jour du nom)
+    savePlayerPublicDataToFirestore(); // Sauvegarde sur Firestore
     saveState(); // Sauvegarde locale via Hive
   }
 
@@ -179,8 +218,7 @@ class GameState extends ChangeNotifier {
 
     notifyListeners();
     saveState(); // Sauvegarde locale via Hive
-    // L'ajout d'anticorps seuls ne déclenche pas de sauvegarde Firestore de la base attaquable.
-    // Cela sera géré lors de savePlayerPublicDataToFirestore qui inclut les anticorps pour les combats.
+    savePlayerPublicDataToFirestore(); // Sauvegarde les anticorps sur Firestore
   }
 
   void markAgentSubtypeAsUsed(String agentType, String subtype) {
@@ -259,10 +297,7 @@ class GameState extends ChangeNotifier {
     notifyListeners();
   }
 
-
   void consommerEnergie(int quantite) {
-    // Cette méthode est déjà implémentée dans RessourcesDefensives,
-    // mais elle est ici pour être appelée par d'autres parties de GameState si nécessaire.
     if (ressources.consommerEnergie(quantite)) {
       notifyListeners();
       saveState();
@@ -270,7 +305,6 @@ class GameState extends ChangeNotifier {
   }
 
   void consommerBioMateriaux(int quantite) {
-    // Cette méthode est déjà implémentée dans RessourcesDefensives.
     if (ressources.consommerBioMateriaux(quantite)) {
       notifyListeners();
       saveState();
@@ -288,63 +322,51 @@ class GameState extends ChangeNotifier {
   /// TODO: Modifier cette méthode pour accepter List<AgentPathogene> selectedAttackingAgents
   /// et ajuster la logique pour simuler les agents attaquant la base ennemie.
   void startBattle(BaseVirale enemyBase, {required String opponentIdentifier, required String opponentType}) {
-
     CombatManager combatManager = CombatManager(
       playerAnticorps: anticorps, // Actuellement utilise les anticorps
       enemyBase: enemyBase, // Base attaquée ou attaquant (selon le contexte)
-
     );
 
-    // Appelle simulateCombat et obtient un SimulationResult
     SimulationResult simulationResult = combatManager.simulateCombat();
 
-    // Crée un CombatResult FINAL en utilisant le SimulationResult et les infos adversaire
     final finalCombatResult = CombatResult(
       playerWon: simulationResult.playerWon,
       battleSummaryForGemini: simulationResult.battleSummaryForGemini,
-      rewards: simulationResult.rewards, // Conserve les récompenses potentielles du simulateur (pour info/futur usage)
+      rewards: simulationResult.rewards,
       defeatedPathogenTypes: simulationResult.defeatedPathogenTypes,
-      opponentIdentifier: opponentIdentifier, // Utilise l'identifiant passé
-      opponentType: opponentType, // Utilise le type passé
+      opponentIdentifier: opponentIdentifier,
+      opponentType: opponentType,
     );
 
-    battleData = finalCombatResult.battleSummaryForGemini; // Met à jour battleData avec le résumé final
-    lastCombatResult = finalCombatResult; // Stocke le résultat complet
+    battleData = finalCombatResult.battleSummaryForGemini;
+    lastCombatResult = finalCombatResult;
 
-    // Ajoute le résultat final à l'historique des attaques
     attackHistory.add(finalCombatResult);
-    // Limiter la taille de l'historique
-    if (attackHistory.length > 50) { // Exemple: garder les 50 derniers combats
+    if (attackHistory.length > 50) {
       attackHistory.removeAt(0);
     }
 
-
     // --- NOUVEAU : Appliquer les récompenses fixes de +10 si le joueur a gagné ---
     if (finalCombatResult.playerWon) {
-      const int rewardAmount = 10; // Montant fixe de la récompense
+      const int rewardAmount = 10;
       ressources.ajouterEnergie(rewardAmount);
       ressources.ajouterBioMateriaux(rewardAmount);
       print("Victoire ! Récompense reçue : +$rewardAmount Énergie, +$rewardAmount Bio-Matériaux.");
-
-    } else {
     }
 
-
     // TODO: Mettre à jour la mémoire immunitaire des anticorps du joueur basée sur `simulationResult.defeatedPathogenTypes`
-
 
     saveState();
     notifyListeners();
   }
-
 
   /// Sauvegarde l'état actuel dans Hive.
   /// Inclut toutes les propriétés persistantes, y compris le nom du joueur et l'historique.
   Future<void> saveState() async {
     try {
       var box = await Hive.openBox('gameStateBox');
-      // Sauvegarde le nom du joueur
-      await box.put('playerName', playerName);
+      await box.put('playerName', _playerName); // Utilisation de _playerName
+      await box.put('playerUid', playerUid); // Sauvegarde du playerUid
       await box.put('ressources', ressources);
       await box.put('memoire', memoire);
       await box.put('anticorps', anticorps);
@@ -354,11 +376,9 @@ class GameState extends ChangeNotifier {
       await box.put('immuneSystemLevel', immuneSystemLevel);
       await box.put('isImmuneSystemUpgrading', isImmuneSystemUpgrading);
       await box.put('immuneSystemUpgradeEndTime', immuneSystemUpgradeEndTime);
-      // Sauvegarde l'historique des combats (uniquement les attaques)
       await box.put('attackHistory', attackHistory);
 
-
-      print("GameState sauvegardé avec succès dans Hive."); // --- DEBUG PRINT ---
+      print("GameState sauvegardé avec succès dans Hive.");
     } catch (e) {
       print("Erreur lors de la sauvegarde GameState: $e");
     }
@@ -370,13 +390,14 @@ class GameState extends ChangeNotifier {
     try {
       var box = await Hive.openBox('gameStateBox');
 
-      playerName = box.get('playerName', defaultValue: "Nouveau Joueur") as String;
-      print("GameState: Nom du joueur chargé depuis Hive: $playerName"); // --- DEBUG PRINT ---
+      _playerName = box.get('playerName', defaultValue: "Nouveau Joueur") as String;
+      playerUid = box.get('playerUid') as String?; // Charge l'UID
 
+      print("GameState: Nom du joueur chargé depuis Hive: $_playerName");
+      print("GameState: UID du joueur chargé depuis Hive: $playerUid");
 
       ressources = box.get('ressources', defaultValue: RessourcesDefensives(energie: 100, bioMateriaux: 100)) as RessourcesDefensives;
       memoire = box.get('memoire', defaultValue: MemoireImmunitaire()) as MemoireImmunitaire;
-      // Assurez-vous que les listes sont correctement typées lors du chargement
       anticorps = (box.get('anticorps', defaultValue: <Anticorps>[]) as List).cast<Anticorps>();
       baseVirale = box.get('baseVirale', defaultValue: BaseVirale(nom: "Base Principale")) as BaseVirale;
       battleData = box.get('battleData', defaultValue: "En attente de combat...") as String;
@@ -398,54 +419,91 @@ class GameState extends ChangeNotifier {
       isImmuneSystemUpgrading = box.get('isImmuneSystemUpgrading', defaultValue: false) as bool;
       immuneSystemUpgradeEndTime = box.get('immuneSystemUpgradeEndTime') as DateTime?;
 
-      // Assurez-vous que les listes d'historique sont correctement typées lors du chargement
       attackHistory = (box.get('attackHistory', defaultValue: <CombatResult>[]) as List).cast<CombatResult>();
-
 
       print("GameState chargé avec succès depuis Hive.");
       print("Niveau Système Immunitaire: $immuneSystemLevel");
       print("Amélioration Système Immunitaire en cours: $isImmuneSystemUpgrading");
       print("Historique d'attaque chargé: ${attackHistory.length} combats.");
 
-
+      // Forcer l'application des stats si les unités ne le font pas déjà
       for (var agent in baseVirale.agents) {
-        // agent.applyLevelStats(); // TODO: Appeler cette méthode une fois implémentée
+        // agent.applyLevelStats(); // À décommenter si cette méthode existe et est nécessaire
       }
       for (var anti in anticorps) {
-        // anti.applyLevelStats(); // TODO: Appeler cette méthode une méthode si elle n'est pas déjà fonctionnelle
+        // anti.applyLevelStats(); // À décommenter si cette méthode existe et est nécessaire
       }
 
       _resumeImmuneSystemUpgradeTimer();
-
-      _initBaseUnits(); // Appeler ici pour ajouter les unités de base si le chargement n'en a pas trouvé
-
+      _initBaseUnits(); // Assurez-vous que les unités de base sont là si elles n'ont pas été chargées
       notifyListeners();
     } catch (e) {
-      print("Erreur lors du chargement GameState: $e");
-      // Initialise les propriétés essentielles avec des valeurs par défaut en cas d'erreur
-      playerName = "Nouveau Joueur"; // Initialise le nom par défaut
-      print("GameState: Nom du joueur initialisé par défaut après erreur de chargement."); // --- DEBUG PRINT ---
-      ressources = RessourcesDefensives(energie: 100, bioMateriaux: 100);
-      memoire = MemoireImmunitaire();
-      anticorps = [];
-      baseVirale = BaseVirale(nom: "Base Principale");
-      battleData = "En attente de combat...";
-      usedAgentSubtypes = {
-        "Bacterie": {},
-        "Champignon": {},
-        "Virus": {},
-      };
-      immuneSystemLevel = 1;
-      isImmuneSystemUpgrading = false;
-      immuneSystemUpgradeEndTime = null;
-      attackHistory = [];
-
-
-      print("GameState réinitialisé après erreur de chargement.");
-      _initBaseUnits();
-      notifyListeners();
+      print("Erreur lors du chargement GameState depuis Hive: $e");
+      _resetGameStateToDefaults(); // Réinitialise l'état en cas d'erreur grave
     }
   }
+
+  // NOUVEAU: Méthode pour réinitialiser l'état du jeu à des valeurs par défaut
+  void _resetGameStateToDefaults() {
+    _playerName = "Nouveau Joueur";
+    playerUid = null;
+    ressources = RessourcesDefensives(energie: 100, bioMateriaux: 100);
+    memoire = MemoireImmunitaire();
+    anticorps = [];
+    baseVirale = BaseVirale(nom: "Base Principale");
+    battleData = "En attente de combat...";
+    usedAgentSubtypes = {
+      "Bacterie": {},
+      "Champignon": {},
+      "Virus": {},
+    };
+    immuneSystemLevel = 1;
+    isImmuneSystemUpgrading = false;
+    immuneSystemUpgradeEndTime = null;
+    attackHistory = [];
+    print("GameState réinitialisé aux valeurs par défaut.");
+    _initBaseUnits(); // Assurez-vous que les unités de base sont là
+    notifyListeners();
+  }
+
+  // NOUVEAU: Synchronise les données du joueur depuis Firestore avec l'état local du GameState
+  // Appelé après le chargement local si un UID est présent, ou après une connexion réussie.
+  Future<void> _initializePlayerStateFromFirestore(String uid) async {
+    print("Tentative de chargement des données publiques pour UID: $uid depuis Firestore...");
+    try {
+      final data = await loadPlayerPublicDataFromFirestore(uid); // Utilise la méthode existante
+      if (data != null) {
+        // Mettre à jour les propriétés du GameState avec les données Firestore
+        setPlayerName(data['playerName'] as String? ?? _playerName);
+        if (data['baseVirale'] is BaseVirale) {
+          baseVirale = data['baseVirale'] as BaseVirale;
+        }
+        if (data['playerAnticorps'] is List<Anticorps>) {
+          anticorps = data['playerAnticorps'] as List<Anticorps>;
+        }
+        if (data['playerRessources'] is RessourcesDefensives) {
+          ressources = data['playerRessources'] as RessourcesDefensives;
+        }
+        if (data['immuneSystemLevel'] is int) {
+          immuneSystemLevel = data['immuneSystemLevel'] as int;
+        }
+        print("GameState mis à jour avec les données de Firestore pour UID: $uid.");
+        // Assurez-vous que les unités de base sont là si elles n'ont pas été chargées (Firestore pourrait être vide)
+        _initBaseUnits();
+        notifyListeners();
+        saveState(); // Sauvegarde l'état local mis à jour depuis Firestore
+      } else {
+        print("Aucune donnée Firestore trouvée pour UID: $uid. Initialisation des unités de base et création Firestore.");
+        _initBaseUnits(); // Initialise les unités de base si aucune donnée n'est trouvée
+        await savePlayerPublicDataToFirestore(); // Crée le document Firestore pour la première fois
+      }
+    } catch (e) {
+      print("Erreur lors de l'initialisation depuis Firestore pour UID $uid: $e");
+      // En cas d'erreur, on se fie aux données locales si elles existent
+      _initBaseUnits(); // Assurez-vous que les unités de base sont là
+    }
+  }
+
 
   // --- Sérialisation/Désérialisation des Anticorps pour Firestore ---
   Map<String, dynamic> _anticorpsToMap(Anticorps anti) {
@@ -455,7 +513,7 @@ class GameState extends ChangeNotifier {
       'pv': anti.pv,
       'typeAttaque': anti.typeAttaque,
       'degats': anti.degats,
-      'coutRessources': anti.coutRessources, // <<--- CORRIGÉ ICI
+      'coutRessources': anti.coutRessources, // CORRIGÉ ICI
       'tempsProduction': anti.tempsProduction,
       'level': anti.level,
       // 'memory': anti.memory.map((k, v) => MapEntry(k, v)), // Si la mémoire doit être stockée
@@ -471,7 +529,7 @@ class GameState extends ChangeNotifier {
     final pv = (map['pv'] as num?)?.toInt() ?? 0;
     final typeAttaque = map['typeAttaque'] as String? ?? "Généraliste";
     final degats = (map['degats'] as num?)?.toInt() ?? 0;
-    final coutRessources = (map['coutRessources'] as num?)?.toInt() ?? 0;
+    final coutRessources = (map['coutRessources'] as num?)?.toInt() ?? 0; // CORRIGÉ ICI
     final tempsProduction = (map['tempsProduction'] as num?)?.toInt() ?? 0;
     final level = (map['level'] as num?)?.toInt() ?? 1;
 
@@ -563,11 +621,9 @@ class GameState extends ChangeNotifier {
         return null;
     }
 
-    if (agent != null) {
-      agent.id = id;
-      agent.level = level;
-      agent.mutationLevel = mutationLevel;
-    }
+    agent.id = id;
+    agent.level = level;
+    agent.mutationLevel = mutationLevel;
     return agent;
   }
 
@@ -593,40 +649,39 @@ class GameState extends ChangeNotifier {
     );
   }
 
-
   /// Sauvegarde les données publiques du joueur (base virale, anticorps, ressources, niveau du système immunitaire)
   /// sur Firestore pour qu'elles soient disponibles pour les combats JcJ.
   Future<void> savePlayerPublicDataToFirestore() async {
-    final user = FirebaseAuth.instance.currentUser;
+    // Utiliser l'UID du joueur stocké localement, qui aura été défini par AuthScreen
+    final currentUid = playerUid;
 
-    if (user == null) {
-      print("Erreur: Aucun utilisateur connecté pour sauvegarder la base sur Firestore.");
+    if (currentUid == null || currentUid.isEmpty) {
+      print("Erreur: Aucun UID de joueur défini pour sauvegarder la base sur Firestore.");
       return;
     }
 
-    final userDocRef = _firestore.collection('playerSystems').doc(user.uid);
+    final userDocRef = _firestore.collection('playerSystems').doc(currentUid);
 
     try {
       final baseData = _playerBaseToMap();
       final anticorpsData = anticorps.map((anti) => _anticorpsToMap(anti)).toList();
 
       final userData = {
-        'uid': user.uid,
-        'playerName': playerName,
+        'uid': currentUid,
+        'playerName': _playerName, // Utilisation de _playerName
         'lastUpdated': FieldValue.serverTimestamp(),
         'baseVirale': baseData,
-        'playerAnticorps': anticorpsData, // Sauvegarde les anticorps
-        'playerRessources': { // Sauvegarde les ressources
+        'playerAnticorps': anticorpsData,
+        'playerRessources': {
           'energie': ressources.energie,
           'bioMateriaux': ressources.bioMateriaux,
         },
-        'immuneSystemLevel': immuneSystemLevel, // Sauvegarde le niveau du système immunitaire
+        'immuneSystemLevel': immuneSystemLevel,
       };
 
       await userDocRef.set(userData, SetOptions(merge: true));
 
-      print("Données publiques du joueur (${user.uid}) sauvegardées sur Firestore.");
-
+      print("Données publiques du joueur ($currentUid) sauvegardées sur Firestore.");
     } catch (e) {
       print("Erreur lors de la sauvegarde des données publiques sur Firestore: $e");
     }
@@ -634,6 +689,7 @@ class GameState extends ChangeNotifier {
 
   /// Charge les données publiques d'un joueur (base virale, anticorps, ressources, niveau du système immunitaire)
   /// depuis Firestore pour les combats JcJ ou l'affichage d'adversaires.
+  /// Retourne un Map<String, dynamic> contenant les objets chargés ou null si non trouvé/erreur.
   Future<Map<String, dynamic>?> loadPlayerPublicDataFromFirestore(String uid) async {
     try {
       final userDocRef = _firestore.collection('playerSystems').doc(uid);
@@ -677,7 +733,6 @@ class GameState extends ChangeNotifier {
           print("Champ 'playerRessources' manquant dans le document Firestore pour UID $uid.");
         }
 
-
         return {
           'playerName': loadedPlayerName,
           'baseVirale': loadedBase,
@@ -685,7 +740,6 @@ class GameState extends ChangeNotifier {
           'playerRessources': loadedRessources,
           'immuneSystemLevel': loadedImmuneSystemLevel,
         };
-
       } else {
         print("Document Firestore non trouvé pour UID $uid.");
         return null;
@@ -695,7 +749,6 @@ class GameState extends ChangeNotifier {
       return null;
     }
   }
-
 
   List<AgentPathogene> get playerBaseAgents => baseVirale.agents;
 

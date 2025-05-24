@@ -10,7 +10,7 @@ import '../models/game_state.dart';
 /// Écran des Paramètres.
 /// Affiche les informations du compte utilisateur.
 class SettingsScreen extends ConsumerWidget { // Change en ConsumerWidget pour utiliser ref
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   // Récupère l'utilisateur Firebase actuellement connecté
   User? get currentUser => FirebaseAuth.instance.currentUser;

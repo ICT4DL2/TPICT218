@@ -15,7 +15,7 @@ import 'models/anticorps.dart';
 /// ou des spécialisations (comme pour les anticorps) et monter le niveau
 /// du système immunitaire ou des unités individuelles.
 class RechercheScreen extends ConsumerStatefulWidget {
-  const RechercheScreen({Key? key}) : super(key: key);
+  const RechercheScreen({super.key});
 
   @override
   _RechercheScreenState createState() => _RechercheScreenState();
@@ -238,10 +238,10 @@ class _RechercheScreenState extends ConsumerState<RechercheScreen> {
                         ElevatedButton(
                           // Désactivé si ressources insuffisantes OU si une amélioration est déjà en cours
                           onPressed: (canLevelUpImmuneSystem && !isImmuneSystemUpgrading) ? _levelUpImmuneSystem : null,
-                          child: Text(isImmuneSystemUpgrading ? "En cours..." : "Monter Niveau"),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                           ),
+                          child: Text(isImmuneSystemUpgrading ? "En cours..." : "Monter Niveau"),
                         ),
                       ],
                     ),
@@ -350,10 +350,10 @@ class _RechercheScreenState extends ConsumerState<RechercheScreen> {
                       onPressed: canResearch ? () {
                         _performResearch(research);
                       } : null,
-                      child: Text(isUnlocked ? "Débloqué" : "Rechercher"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: canResearch ? Colors.green : Colors.grey,
                       ),
+                      child: Text(isUnlocked ? "Débloqué" : "Rechercher"),
                     ),
                   ),
                 );
@@ -404,10 +404,10 @@ class _RechercheScreenState extends ConsumerState<RechercheScreen> {
                       onPressed: canLevelUp ? () {
                         _levelUpUnit(agent);
                       } : null,
-                      child: Text(isMaxLevel ? "Max" : "Évoluer"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: canLevelUp ? Colors.red : Colors.grey,
                       ),
+                      child: Text(isMaxLevel ? "Max" : "Évoluer"),
                     ),
                   ),
                 );
@@ -477,10 +477,10 @@ class _RechercheScreenState extends ConsumerState<RechercheScreen> {
                           onPressed: canLevelUp ? () {
                             _levelUpUnit(anti); // Appelle la même méthode pour les anticorps
                           } : null,
-                          child: Text(isMaxLevel ? "Max" : "Évoluer"),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: canLevelUp ? Colors.blue : Colors.grey,
                           ),
+                          child: Text(isMaxLevel ? "Max" : "Évoluer"),
                         ),
                         const SizedBox(height: 4), // Espacement entre les boutons
                         // Bouton de spécialisation (si possible)
@@ -493,10 +493,10 @@ class _RechercheScreenState extends ConsumerState<RechercheScreen> {
                                 const SnackBar(content: Text("Logique de spécialisation à implémenter.")),
                               );
                             } : null,
-                            child: const Text("Spécialiser"),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: canAffordSpec ? Colors.orange : Colors.grey,
                             ),
+                            child: const Text("Spécialiser"),
                           ),
                       ],
                     ),

@@ -4,7 +4,7 @@ import 'gemini_service.dart';
 class BriefingWidget extends StatelessWidget {
   final String battleData; // Paramètre obligatoire pour la bataille
 
-  const BriefingWidget({Key? key, required this.battleData}) : super(key: key);
+  const BriefingWidget({super.key, required this.battleData});
 
   @override
   Widget build(BuildContext context) {

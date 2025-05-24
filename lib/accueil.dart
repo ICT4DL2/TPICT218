@@ -8,7 +8,7 @@ import 'models/game_state.dart';
 
 
 class Accueil extends ConsumerWidget {
-  const Accueil({Key? key}) : super(key: key);
+  const Accueil({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

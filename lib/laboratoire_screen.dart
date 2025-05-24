@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'models/game_state.dart'; // Pour accéder à gameStateProvider
-import 'models/laboratoire_recherche.dart';
 import 'models/agent_pathogene.dart';
 import 'models/bacterie.dart';
 import 'models/champignon.dart';
@@ -11,7 +10,7 @@ import 'models/anticorps.dart';
 
 
 class LaboratoireScreen extends ConsumerStatefulWidget {
-  const LaboratoireScreen({Key? key}) : super(key: key);
+  const LaboratoireScreen({super.key});
 
   @override
   _LaboratoireScreenState createState() => _LaboratoireScreenState();
@@ -445,7 +444,7 @@ class _LaboratoireScreenState extends ConsumerState<LaboratoireScreen> {
                         }
                       },
                       icon: const Icon(Icons.add, size: 18), // Taille de l'icône augmentée
-                      label: Text("Créer Agent (${energyCostAgent} Énergie)", style: const TextStyle(fontSize: 14)), // Taille du texte augmentée
+                      label: Text("Créer Agent ($energyCostAgent Énergie)", style: const TextStyle(fontSize: 14)), // Taille du texte augmentée
                       style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.deepOrangeAccent, // Couleur vive pour l'action de création d'agent
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), // Padding ajusté
