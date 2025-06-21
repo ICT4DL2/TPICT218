@@ -25,7 +25,7 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       ..baseVirale = fields[3] as BaseVirale
       ..battleData = fields[4] as String
       ..usedAgentSubtypes = (fields[5] as Map).map((dynamic k, dynamic v) =>
-          MapEntry(k as String, (v as List).cast<String>().toSet()))
+          MapEntry(k as String, (v as List).cast<String>()))
       ..immuneSystemLevel = fields[7] as int
       ..isImmuneSystemUpgrading = fields[10] as bool
       ..immuneSystemUpgradeEndTime = fields[11] as DateTime?

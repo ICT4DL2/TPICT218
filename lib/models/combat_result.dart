@@ -20,7 +20,7 @@ class CombatResult {
 
   /// Types de pathogènes vaincus (pour la mémoire immunitaire).
   @HiveField(3)
-  final Set<String> defeatedPathogenTypes;
+  final List<String> defeatedPathogenTypes;
 
   // Informations sur l'adversaire
   @HiveField(4)

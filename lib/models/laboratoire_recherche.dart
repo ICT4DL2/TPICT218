@@ -10,7 +10,6 @@ import 'game_state.dart'; // Importe GameState pour accéder au niveau immunitai
 
 class LaboratoireCreation {
   final RessourcesDefensives ressources;
-  // --- NOUVEAU : Référence au GameState pour accéder au niveau immunitaire ---
   final GameState gameState; // Le Laboratoire a besoin de connaître l'état global
 
   LaboratoireCreation(this.ressources, this.gameState); // Passe le GameState au constructeur
@@ -21,9 +20,7 @@ class LaboratoireCreation {
 
   // TODO: Définir les coûts pour les recherches spécifiques (spécialisation, etc.)
 
-  /// Crée un agent pathogène avec des statistiques fournies par l'utilisateur.
-  /// Vérifie les limites de création basées sur le niveau immunitaire.
-  /// L'ID et le niveau seront assignés dans GameState.addAgentToBase.
+
   AgentPathogene creerAgentPathogeneManual({
     required String type,
     required int pv,
@@ -32,7 +29,6 @@ class LaboratoireCreation {
     required int initiative,
     String? customType, // Permet de passer un customType
   }) {
-    // --- NOUVEAU : Vérifie la limite de création d'agents si niveau < 4 ---
     if (gameState.immuneSystemLevel < 4 && gameState.baseVirale.agents.length >= 2) {
       throw Exception("Limite de création d'agents atteinte pour le niveau ${gameState.immuneSystemLevel} du Système Immunitaire (max 2).");
     }
@@ -50,7 +46,6 @@ class LaboratoireCreation {
           armure: armure,
           degats: degats,
           initiative: initiative,
-          // customType: customType, // Passer le customType si le constructeur l'accepte
         );
         break;
       case "champignon":
@@ -59,8 +54,7 @@ class LaboratoireCreation {
           armure: armure,
           degats: degats,
           initiative: initiative,
-          // customType: customType,
-          // invisible: false, // Gérer les propriétés spécifiques si nécessaire
+
         );
         break;
       case "virus":
@@ -83,11 +77,8 @@ class LaboratoireCreation {
     return newAgent; // L'ID et le niveau seront assignés dans GameState
   }
 
-  /// Crée un agent pathogène avec des statistiques aléatoires.
-  /// Vérifie les limites de création basées sur le niveau immunitaire.
-  /// L'ID et le niveau seront assignés dans GameState.addAgentToBase.
+
   AgentPathogene creerAgentPathogene({ required String type, String? customType }) {
-    // --- NOUVEAU : Vérifie la limite de création d'agents si niveau < 4 ---
     if (gameState.immuneSystemLevel < 4 && gameState.baseVirale.agents.length >= 2) {
       throw Exception("Limite de création d'agents atteinte pour le niveau ${gameState.immuneSystemLevel} du Système Immunitaire (max 2).");
     }
@@ -110,9 +101,7 @@ class LaboratoireCreation {
   }
 
 
-  /// Crée un anticorps en consommant des biomatériaux.
-  /// Vérifie les limites de création basées sur le niveau immunitaire.
-  /// L'ID et le niveau seront assignés dans GameState.addAnticorps.
+
   Anticorps creerAnticorps({
     required String nom,
     int? pv,
@@ -142,14 +131,10 @@ class LaboratoireCreation {
     ); // L'ID et le niveau seront assignés dans GameState
   }
 
-  /// Évolue un agent en améliorant ses caractéristiques.
-  /// Cette méthode ne devrait plus être utilisée directement pour la montée de niveau.
-  /// La montée de niveau sera gérée par une méthode dans GameState.
-  /// Laisse la méthode pour référence si elle est utilisée ailleurs.
+
   AgentPathogene evoluerAgent(AgentPathogene agent) {
     print("Attention: evoluerAgent dans LaboratoireCreation est obsolète pour la montée de niveau.");
-    // Cette logique devrait être dans une méthode levelUpUnit dans GameState.
-    // Pour l'instant, on la laisse mais elle ne gère pas les niveaux externes.
+
     if (!ressources.consommerEnergie(coutEvolution)) {
       throw Exception("Pas assez d'énergie pour faire évoluer l'agent.");
     }
@@ -184,6 +169,5 @@ class LaboratoireCreation {
     }
   }
 
-// TODO: Ajouter des méthodes pour gérer les recherches spécifiques (spécialisation, etc.)
-// ou déplacer cette logique dans GameState.
+
 }

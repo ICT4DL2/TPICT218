@@ -27,7 +27,7 @@ class DefaultAgentPathogeneAdapter extends TypeAdapter<DefaultAgentPathogene> {
     )
       ..id = fields[0] as String
       ..typeAttaque = fields[4] as String
-      ..customType = fields[7] as String?
+      ..customType = fields[88] as String?
       ..mutationLevel = fields[9] as int;
   }
 
@@ -53,7 +53,7 @@ class DefaultAgentPathogeneAdapter extends TypeAdapter<DefaultAgentPathogene> {
       ..write(obj.degats)
       ..writeByte(6)
       ..write(obj.initiative)
-      ..writeByte(7)
+      ..writeByte(88)
       ..write(obj.customType)
       ..writeByte(9)
       ..write(obj.mutationLevel);

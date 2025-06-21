@@ -3,9 +3,7 @@ import 'package:dio/dio.dart';
 class GeminiService {
   final Dio _dio = Dio();
 
-  // URL d'API incluant l'API key dans l'URL.
-  // Remplacez par l'URL exacte de votre API.
-  // Assurez-vous que la clé API est valide pour gemini-2.0-flash et la méthode generateContent.
+
   final String _endpoint =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyCAv5j8Mm1NyVTqfdjxmGM3i9CIsp2LtnU'; // <-- Remplacez par votre VRAIE clé
 
@@ -38,7 +36,6 @@ class GeminiService {
         options: Options(
           headers: {
             'Content-Type': 'application/json',
-            // L'API key est déjà dans l'URL, pas besoin d'autres headers pour l'authentification.
           },
         ),
       );

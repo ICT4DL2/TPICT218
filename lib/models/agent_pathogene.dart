@@ -31,7 +31,7 @@ abstract class AgentPathogene {
   int initiative;
 
   // Nouveau champ "customType" (ou vous pouvez le nommer autrement selon vos besoins).
-  @HiveField(7) // Ancien champ 8
+  @HiveField(88) // Ancien champ 8
   String? customType;
 
   // --- NOUVEAU : Niveau de l'agent pathogène ---

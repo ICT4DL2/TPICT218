@@ -24,7 +24,7 @@ class BacterieAdapter extends TypeAdapter<Bacterie> {
     )
       ..id = fields[0] as String
       ..typeAttaque = fields[4] as String
-      ..customType = fields[7] as String?
+      ..customType = fields[88] as String?
       ..level = fields[8] as int
       ..mutationLevel = fields[9] as int;
   }
@@ -47,7 +47,7 @@ class BacterieAdapter extends TypeAdapter<Bacterie> {
       ..write(obj.degats)
       ..writeByte(6)
       ..write(obj.initiative)
-      ..writeByte(7)
+      ..writeByte(88)
       ..write(obj.customType)
       ..writeByte(8)
       ..write(obj.level)

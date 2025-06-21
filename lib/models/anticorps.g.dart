@@ -8,7 +8,7 @@ part of 'anticorps.dart';
 
 class AnticorpsAdapter extends TypeAdapter<Anticorps> {
   @override
-  final int typeId = 1;
+  final int typeId = 8;
 
   @override
   Anticorps read(BinaryReader reader) {
@@ -19,21 +19,33 @@ class AnticorpsAdapter extends TypeAdapter<Anticorps> {
     return Anticorps(
       nom: fields[1] as String,
       pv: fields[2] as int,
-      typeAttaque: fields[3] as String,
-      degats: fields[4] as int,
-      coutRessources: fields[5] as int,
-      tempsProduction: fields[6] as int,
+      typeAttaque: fields[4] as String,
+      degats: fields[5] as int,
+      armure: fields[3] as double,
+      initiative: fields[6] as int,
+      coutRessources: fields[10] as int,
+      tempsProduction: fields[11] as int,
     )
+      ..specialization = fields[12] as String?
+      ..memory = (fields[13] as List).cast<String>()
       ..id = fields[0] as String
-      ..level = fields[7] as int
-      ..specialization = fields[8] as String?
-      ..memory = (fields[9] as List).cast<String>().toSet();
+      ..customType = fields[88] as String?
+      ..level = fields[8] as int
+      ..mutationLevel = fields[9] as int;
   }
 
   @override
   void write(BinaryWriter writer, Anticorps obj) {
     writer
+      ..writeByte(14)
       ..writeByte(10)
+      ..write(obj.coutRessources)
+      ..writeByte(11)
+      ..write(obj.tempsProduction)
+      ..writeByte(12)
+      ..write(obj.specialization)
+      ..writeByte(13)
+      ..write(obj.memory.toList())
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,19 +53,19 @@ class AnticorpsAdapter extends TypeAdapter<Anticorps> {
       ..writeByte(2)
       ..write(obj.pv)
       ..writeByte(3)
-      ..write(obj.typeAttaque)
+      ..write(obj.armure)
       ..writeByte(4)
-      ..write(obj.degats)
+      ..write(obj.typeAttaque)
       ..writeByte(5)
-      ..write(obj.coutRessources)
+      ..write(obj.degats)
       ..writeByte(6)
-      ..write(obj.tempsProduction)
-      ..writeByte(7)
-      ..write(obj.level)
+      ..write(obj.initiative)
+      ..writeByte(88)
+      ..write(obj.customType)
       ..writeByte(8)
-      ..write(obj.specialization)
+      ..write(obj.level)
       ..writeByte(9)
-      ..write(obj.memory.toList());
+      ..write(obj.mutationLevel);
   }
 
   @override
